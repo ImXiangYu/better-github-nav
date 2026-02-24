@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.4
+// @version      0.1.6
 // @description  Add Trending, Explore, Collections and Stars buttons to the GitHub top navigation bar.
 // @description:zh-CN 在 GitHub 顶部导航栏无缝添加 Trending, Explore, Collections 和 Stars 快捷按钮。
 // @author       Ayubass
@@ -15,7 +15,7 @@
 
 (function() {
     'use strict';
-    const SCRIPT_VERSION = '0.1.4';
+    const SCRIPT_VERSION = '0.1.6';
     const CUSTOM_BUTTON_CLASS = 'custom-gh-nav-btn';
     const CUSTOM_BUTTON_ACTIVE_CLASS = 'custom-gh-nav-btn-active';
 
@@ -72,6 +72,15 @@
         }
     }
 
+    function setLinkText(aTag, text) {
+        const innerSpan = aTag.querySelector('span');
+        if (innerSpan) {
+            innerSpan.textContent = text;
+        } else {
+            aTag.textContent = text;
+        }
+    }
+
     function addCustomButtons() {
         // 获取当前登录的用户名，用来动态生成 Stars 页面的专属链接
         const userLoginMeta = document.querySelector('meta[name="user-login"]');
@@ -84,12 +93,17 @@
             { id: 'custom-gh-btn-trending', text: 'Trending', href: '/trending', path: '/trending' },
             { id: 'custom-gh-btn-explore', text: 'Explore', href: '/explore', path: '/explore' },
             { id: 'custom-gh-btn-collections', text: 'Collections', href: '/collections', path: '/collections' },
-            { id: 'custom-gh-btn-stars', text: 'Stars', href: starsUrl, path: normalizePath(starsUrl) }
+            { id: 'custom-gh-btn-stars', text: 'Stars', href: starsUrl, path: '/stars' }
         ];
+        const navPresetLinks = [dashboardLink, ...customLinks];
+        const fixedPages = new Set(['/dashboard', '/trending', '/explore', '/collections']);
 
-        // 先按稳定 href 寻找顶栏锚点，避免依赖会变化的文案与 aria-label
+        // 优先找常见入口，再兜底到 breadcrumb/context crumb（如 /<name>?tab=stars）
         let targetNode = document.querySelector(
-            'header a[href="/dashboard"], header a[href="/trending"], header a[href="/explore"]'
+            'header a[href="/dashboard"], header a[href="/trending"], header a[href="/explore"], ' +
+            'header nav[aria-label*="breadcrumb" i] a[href^="/"], ' +
+            'header a[class*="contextCrumb"][href^="/"], ' +
+            'header a[class*="Breadcrumbs-Item"][href^="/"]'
         );
 
         // 兼容兜底：若未找到主导航，再尝试旧规则
@@ -109,26 +123,34 @@
             // 判断父元素是不是 <li>，如果是的话需要连带 <li> 一起克隆以保证布局不乱
             const isLiParent = targetNode.parentNode.tagName.toLowerCase() === 'li';
             const cloneTarget = isLiParent ? targetNode.parentNode : targetNode;
-            const dashboardTag = isLiParent ? cloneTarget.querySelector('a') : cloneTarget;
+            const anchorTag = isLiParent ? cloneTarget.querySelector('a') : cloneTarget;
+            const isOnPresetPage = navPresetLinks.some(
+                link => fixedPages.has(link.path) && isCurrentPage(link.path)
+            );
 
-            // 将首个锚点统一改成 Dashboard，保证五个按钮顺序稳定
-            dashboardTag.id = dashboardLink.id;
-            dashboardTag.href = dashboardLink.href;
-            const dashboardInnerSpan = dashboardTag.querySelector('span');
-            if (dashboardInnerSpan) {
-                dashboardInnerSpan.textContent = dashboardLink.text;
+            if (isOnPresetPage) {
+                // 五个预设页面：首个按钮固定为 Dashboard
+                anchorTag.id = dashboardLink.id;
+                anchorTag.href = dashboardLink.href;
+                setLinkText(anchorTag, dashboardLink.text);
+                setActiveStyle(anchorTag, isCurrentPage(dashboardLink.path));
             } else {
-                dashboardTag.textContent = dashboardLink.text;
+                // 其他页面：保留原生当前按钮，仅做高亮
+                if (anchorTag.id === dashboardLink.id) {
+                    anchorTag.removeAttribute('id');
+                }
+                setActiveStyle(anchorTag, true);
             }
-            setActiveStyle(dashboardTag, isCurrentPage(dashboardLink.path));
             
             // 设定插入的锚点，随着循环不断向后移动，保证按钮顺序正确
             let insertAfterNode = cloneTarget;
+            const linksToRender = isOnPresetPage ? customLinks : navPresetLinks;
 
-            customLinks.forEach(linkInfo => {
+            linksToRender.forEach(linkInfo => {
                 const existing = document.getElementById(linkInfo.id);
                 if (existing) {
                     existing.href = linkInfo.href;
+                    setLinkText(existing, linkInfo.text);
                     setActiveStyle(existing, isCurrentPage(linkInfo.path));
                     return;
                 }
@@ -138,14 +160,7 @@
                 
                 aTag.id = linkInfo.id;
                 aTag.href = linkInfo.href;
-
-                // 替换文本内容（兼容内部有 span 标签的情况）
-                const innerSpan = aTag.querySelector('span');
-                if (innerSpan) {
-                    innerSpan.textContent = linkInfo.text;
-                } else {
-                    aTag.textContent = linkInfo.text;
-                }
+                setLinkText(aTag, linkInfo.text);
 
                 setActiveStyle(aTag, isCurrentPage(linkInfo.path));
 
