@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.17
+// @version      0.1.18
 // @description  Add quick access to Dashboard, Trending, Explore, Collections, and Stars from GitHub's top navigation.
 // @description:zh-CN 在 GitHub 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。
 // @author       Ayubass
@@ -15,7 +15,7 @@
 
 (function() {
     'use strict';
-    const SCRIPT_VERSION = '0.1.17';
+    const SCRIPT_VERSION = '0.1.18';
     const CUSTOM_BUTTON_CLASS = 'custom-gh-nav-btn';
     const CUSTOM_BUTTON_ACTIVE_CLASS = 'custom-gh-nav-btn-active';
 
@@ -93,6 +93,10 @@
         let aTag = isLiParent ? node.querySelector('a') : (node.tagName.toLowerCase() === 'a' ? node : node.querySelector('a'));
         if (aTag) return aTag;
 
+        const fallbackText = (node.textContent || '').trim();
+        const fallbackHref = (!isLiParent && node.getAttribute && node.getAttribute('href'))
+            ? node.getAttribute('href')
+            : `${location.pathname}${location.search}`;
         const classSource = isLiParent
             ? node.querySelector('[class*="contextCrumb"], [class*="Breadcrumbs-Item"]')
             : node;
@@ -113,7 +117,19 @@
             innerSpan.className = spanTemplate && spanTemplate.className
                 ? spanTemplate.className
                 : spanSource.className;
+            if (fallbackText) innerSpan.textContent = fallbackText;
             aTag.appendChild(innerSpan);
+        }
+        if (!aTag.getAttribute('href') && fallbackHref) {
+            aTag.setAttribute('href', fallbackHref);
+        }
+        if (!aTag.textContent.trim() && fallbackText) {
+            const innerSpan = aTag.querySelector('span');
+            if (innerSpan) {
+                innerSpan.textContent = fallbackText;
+            } else {
+                aTag.textContent = fallbackText;
+            }
         }
 
         if (isLiParent) {
@@ -163,6 +179,16 @@
             }
         }
 
+        // 全局导航中优先使用当前页项，避免误选最后一个导航按钮导致当前页无高亮
+        if (!targetNode) {
+            targetNode = document.querySelector(
+                'header nav a[aria-current="page"]:not([id^="custom-gh-btn-"]), ' +
+                'header nav a[data-active="true"]:not([id^="custom-gh-btn-"]), ' +
+                'header nav [aria-current="page"]:not(a), ' +
+                'header nav [data-active="true"]:not(a)'
+            );
+        }
+
         // 兼容兜底：若未找到主导航，再尝试旧规则
         if (!targetNode) {
             const navLinks = document.querySelectorAll('header a');
@@ -176,8 +202,9 @@
             }
         }
 
-        // 通用兜底：在有全局导航的页面（如 /pulls /issues /repositories）取最后一个导航项作为锚点
+        // 通用兜底：在有全局导航的页面（如 /pulls /issues /repositories）优先按当前路径匹配
         if (!targetNode) {
+            const currentPath = location.pathname.replace(/\/+$/, '') || '/';
             const globalNavCandidates = Array.from(
                 document.querySelectorAll(
                     'header nav[aria-label*="global" i] a[href^="/"], ' +
@@ -196,7 +223,10 @@
                 return true;
             });
             if (globalNavCandidates.length) {
-                targetNode = globalNavCandidates[globalNavCandidates.length - 1];
+                targetNode = globalNavCandidates.find(link => {
+                    const href = normalizePath(link.getAttribute('href') || '');
+                    return href === currentPath;
+                }) || globalNavCandidates[globalNavCandidates.length - 1];
             }
         }
 
@@ -262,7 +292,10 @@
             const targetHasAnchor = isTargetLiParent
                 ? Boolean(insertAnchorNode.querySelector('a'))
                 : insertAnchorNode.tagName.toLowerCase() === 'a' || Boolean(insertAnchorNode.querySelector('a'));
-            const anchorTag = targetHasAnchor ? ensureAnchor(insertAnchorNode, isTargetLiParent) : null;
+            const shouldForceCreateAnchor = !targetHasAnchor && Boolean(targetNode.closest('header nav'));
+            const anchorTag = (targetHasAnchor || shouldForceCreateAnchor)
+                ? ensureAnchor(insertAnchorNode, isTargetLiParent)
+                : null;
             const hasShortcutActive = navPresetLinks.some(link => isCurrentPage(link.path));
 
             if (isOnPresetPage && anchorTag) {
