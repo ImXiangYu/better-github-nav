@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.18
+// @version      0.1.19
 // @description  Add quick access to Dashboard, Trending, Explore, Collections, and Stars from GitHub's top navigation.
 // @description:zh-CN 在 GitHub 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。
 // @author       Ayubass
@@ -15,9 +15,10 @@
 
 (function() {
     'use strict';
-    const SCRIPT_VERSION = '0.1.18';
+    const SCRIPT_VERSION = '0.1.19';
     const CUSTOM_BUTTON_CLASS = 'custom-gh-nav-btn';
     const CUSTOM_BUTTON_ACTIVE_CLASS = 'custom-gh-nav-btn-active';
+    const CUSTOM_BUTTON_COMPACT_CLASS = 'custom-gh-nav-btn-compact';
 
     function normalizePath(href) {
         try {
@@ -49,6 +50,9 @@
                 padding-inline: 8px;
                 text-decoration: none;
             }
+            a.${CUSTOM_BUTTON_CLASS}.${CUSTOM_BUTTON_COMPACT_CLASS} {
+                padding-inline: 4px;
+            }
             a.${CUSTOM_BUTTON_CLASS},
             a.${CUSTOM_BUTTON_CLASS} span {
                 font-weight: 600;
@@ -69,8 +73,13 @@
         document.head.appendChild(style);
     }
 
-    function setActiveStyle(aTag, active) {
+    function setActiveStyle(aTag, active, compact = false) {
         aTag.classList.add(CUSTOM_BUTTON_CLASS);
+        if (compact) {
+            aTag.classList.add(CUSTOM_BUTTON_COMPACT_CLASS);
+        } else {
+            aTag.classList.remove(CUSTOM_BUTTON_COMPACT_CLASS);
+        }
         if (active) {
             aTag.setAttribute('aria-current', 'page');
             aTag.classList.add(CUSTOM_BUTTON_ACTIVE_CLASS);
@@ -157,10 +166,12 @@
         ];
         const navPresetLinks = [dashboardLink, ...customLinks];
         const fixedPages = new Set(['/dashboard', '/trending', '/explore', '/collections']);
+        const compactPages = new Set(['/issues', '/pulls', '/repositories']);
 
         const isOnPresetPage = navPresetLinks.some(
             link => fixedPages.has(link.path) && isCurrentPage(link.path)
         );
+        const shouldUseCompactButtons = Array.from(compactPages).some(path => isCurrentPage(path));
 
         // 预设页面优先主导航；其他页面优先 breadcrumb/context crumb 的最后一项（如仓库名）
         let targetNode = null;
@@ -303,7 +314,7 @@
                 anchorTag.id = dashboardLink.id;
                 anchorTag.href = dashboardLink.href;
                 setLinkText(anchorTag, dashboardLink.text);
-                setActiveStyle(anchorTag, isCurrentPage(dashboardLink.path));
+                setActiveStyle(anchorTag, isCurrentPage(dashboardLink.path), shouldUseCompactButtons);
             } else {
                 // 其他页面：保留原生当前按钮，仅做高亮
                 if (anchorTag && anchorTag.id === dashboardLink.id) {
@@ -311,7 +322,7 @@
                 }
                 // 若快捷按钮已有命中（如 Stars 页），则避免双高亮
                 if (anchorTag) {
-                    setActiveStyle(anchorTag, !hasShortcutActive);
+                    setActiveStyle(anchorTag, !hasShortcutActive, shouldUseCompactButtons);
                 }
             }
             
@@ -324,7 +335,7 @@
                 if (existing) {
                     existing.href = linkInfo.href;
                     setLinkText(existing, linkInfo.text);
-                    setActiveStyle(existing, isCurrentPage(linkInfo.path));
+                    setActiveStyle(existing, isCurrentPage(linkInfo.path), shouldUseCompactButtons);
                     return;
                 }
 
@@ -335,7 +346,7 @@
                 aTag.href = linkInfo.href;
                 setLinkText(aTag, linkInfo.text);
 
-                setActiveStyle(aTag, isCurrentPage(linkInfo.path));
+                setActiveStyle(aTag, isCurrentPage(linkInfo.path), shouldUseCompactButtons);
 
                 // 将新按钮插入到锚点之后，并更新锚点
                 insertAfterNode.parentNode.insertBefore(newNode, insertAfterNode.nextSibling);
