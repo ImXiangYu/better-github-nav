@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.9
+// @version      0.1.17
 // @description  Add quick access to Dashboard, Trending, Explore, Collections, and Stars from GitHub's top navigation.
 // @description:zh-CN 在 GitHub 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。
 // @author       Ayubass
@@ -15,7 +15,7 @@
 
 (function() {
     'use strict';
-    const SCRIPT_VERSION = '0.1.9';
+    const SCRIPT_VERSION = '0.1.17';
     const CUSTOM_BUTTON_CLASS = 'custom-gh-nav-btn';
     const CUSTOM_BUTTON_ACTIVE_CLASS = 'custom-gh-nav-btn-active';
 
@@ -49,6 +49,14 @@
                 padding-inline: 8px;
                 text-decoration: none;
             }
+            a.${CUSTOM_BUTTON_CLASS},
+            a.${CUSTOM_BUTTON_CLASS} span {
+                font-weight: 600;
+            }
+            a.${CUSTOM_BUTTON_CLASS},
+            a.${CUSTOM_BUTTON_CLASS} * {
+                cursor: pointer;
+            }
             a.${CUSTOM_BUTTON_CLASS}:hover {
                 background-color: var(--color-neutral-muted, rgba(177, 186, 196, 0.12));
                 text-decoration: none;
@@ -79,6 +87,42 @@
         } else {
             aTag.textContent = text;
         }
+    }
+
+    function ensureAnchor(node, isLiParent) {
+        let aTag = isLiParent ? node.querySelector('a') : (node.tagName.toLowerCase() === 'a' ? node : node.querySelector('a'));
+        if (aTag) return aTag;
+
+        const classSource = isLiParent
+            ? node.querySelector('[class*="contextCrumb"], [class*="Breadcrumbs-Item"]')
+            : node;
+        const spanTemplate = document.querySelector(
+            'header a[class*="contextCrumb"] span[class*="contextCrumbLast"]'
+        );
+        const spanSource = isLiParent ? node.querySelector('span') : node.querySelector('span');
+
+        aTag = document.createElement('a');
+        if (classSource && classSource.className) {
+            aTag.className = classSource.className
+                .split(/\s+/)
+                .filter(cls => cls && !cls.includes('contextCrumbStatic'))
+                .join(' ');
+        }
+        if (spanSource && spanSource.className) {
+            const innerSpan = document.createElement('span');
+            innerSpan.className = spanTemplate && spanTemplate.className
+                ? spanTemplate.className
+                : spanSource.className;
+            aTag.appendChild(innerSpan);
+        }
+
+        if (isLiParent) {
+            node.textContent = '';
+            node.appendChild(aTag);
+        } else {
+            node.replaceChildren(aTag);
+        }
+        return aTag;
     }
 
     function addCustomButtons() {
@@ -132,14 +176,96 @@
             }
         }
 
+        // 通用兜底：在有全局导航的页面（如 /pulls /issues /repositories）取最后一个导航项作为锚点
+        if (!targetNode) {
+            const globalNavCandidates = Array.from(
+                document.querySelectorAll(
+                    'header nav[aria-label*="global" i] a[href^="/"], ' +
+                    'header nav[aria-label*="header" i] a[href^="/"], ' +
+                    'header nav a[href="/pulls"], ' +
+                    'header nav a[href="/issues"], ' +
+                    'header nav a[href="/repositories"], ' +
+                    'header nav a[href="/codespaces"], ' +
+                    'header nav a[href="/marketplace"], ' +
+                    'header nav a[href="/explore"]'
+                )
+            ).filter(link => {
+                const href = normalizePath(link.getAttribute('href') || '');
+                if (!href || href === '/') return false;
+                if (link.id && link.id.startsWith('custom-gh-btn-')) return false;
+                return true;
+            });
+            if (globalNavCandidates.length) {
+                targetNode = globalNavCandidates[globalNavCandidates.length - 1];
+            }
+        }
+
+        // 文本型当前项兜底：部分页面当前导航项是不可点击文本（非 a）
+        if (!targetNode) {
+            const currentTextNode = document.querySelector(
+                'header nav [aria-current="page"]:not(a), ' +
+                'header nav [data-active="true"]:not(a)'
+            );
+            if (currentTextNode) {
+                targetNode = currentTextNode;
+            }
+        }
+
+        // context crumb 文本项兜底：如 Issues/PRs 页为 span 而非 a
+        if (!targetNode) {
+            const contextCrumbTextNodes = document.querySelectorAll(
+                'header span[class*="contextCrumbStatic"], ' +
+                'header span[class*="contextCrumb"][class*="Breadcrumbs-Item"], ' +
+                'header .prc-Breadcrumbs-Item-jcraJ'
+            );
+            if (contextCrumbTextNodes.length) {
+                targetNode = contextCrumbTextNodes[contextCrumbTextNodes.length - 1];
+            }
+        }
+
+        // 样式模板优先使用同容器内可点击链接，避免从纯文本节点克隆导致样式不一致
+        let templateNode = targetNode;
         if (targetNode) {
-            // 判断父元素是不是 <li>，如果是的话需要连带 <li> 一起克隆以保证布局不乱
-            const isLiParent = targetNode.parentNode.tagName.toLowerCase() === 'li';
-            const cloneTarget = isLiParent ? targetNode.parentNode : targetNode;
-            const anchorTag = isLiParent ? cloneTarget.querySelector('a') : cloneTarget;
+            const localNav = targetNode.closest('nav, ul, ol');
+            const localAnchors = localNav
+                ? localNav.querySelectorAll('a[href^="/"]:not([id^="custom-gh-btn-"])')
+                : [];
+
+            if (localAnchors.length) {
+                templateNode = localAnchors[localAnchors.length - 1];
+            } else {
+                const nativeNavAnchors = document.querySelectorAll(
+                    'header nav[aria-label*="breadcrumb" i] a[href^="/"]:not([id^="custom-gh-btn-"]), ' +
+                    'header a[class*="contextCrumb"][href^="/"]:not([id^="custom-gh-btn-"]), ' +
+                    'header a[class*="Breadcrumbs-Item"][href^="/"]:not([id^="custom-gh-btn-"]), ' +
+                    'header nav[aria-label*="global" i] a[href^="/"]:not([id^="custom-gh-btn-"]), ' +
+                    'header nav[aria-label*="header" i] a[href^="/"]:not([id^="custom-gh-btn-"]), ' +
+                    'header nav a[href="/pulls"]:not([id^="custom-gh-btn-"]), ' +
+                    'header nav a[href="/issues"]:not([id^="custom-gh-btn-"]), ' +
+                    'header nav a[href="/repositories"]:not([id^="custom-gh-btn-"]), ' +
+                    'header nav a[href="/codespaces"]:not([id^="custom-gh-btn-"]), ' +
+                    'header nav a[href="/marketplace"]:not([id^="custom-gh-btn-"]), ' +
+                    'header nav a[href="/explore"]:not([id^="custom-gh-btn-"])'
+                );
+                if (nativeNavAnchors.length) {
+                    templateNode = nativeNavAnchors[nativeNavAnchors.length - 1];
+                }
+            }
+        }
+
+        if (targetNode) {
+            // targetNode 用于决定插入位置，templateNode 用于克隆样式
+            const isTargetLiParent = targetNode.parentNode.tagName.toLowerCase() === 'li';
+            const insertAnchorNode = isTargetLiParent ? targetNode.parentNode : targetNode;
+            const isTemplateLiParent = templateNode.parentNode.tagName.toLowerCase() === 'li';
+            const cloneTemplateNode = isTemplateLiParent ? templateNode.parentNode : templateNode;
+            const targetHasAnchor = isTargetLiParent
+                ? Boolean(insertAnchorNode.querySelector('a'))
+                : insertAnchorNode.tagName.toLowerCase() === 'a' || Boolean(insertAnchorNode.querySelector('a'));
+            const anchorTag = targetHasAnchor ? ensureAnchor(insertAnchorNode, isTargetLiParent) : null;
             const hasShortcutActive = navPresetLinks.some(link => isCurrentPage(link.path));
 
-            if (isOnPresetPage) {
+            if (isOnPresetPage && anchorTag) {
                 // 五个预设页面：首个按钮固定为 Dashboard
                 anchorTag.id = dashboardLink.id;
                 anchorTag.href = dashboardLink.href;
@@ -147,15 +273,17 @@
                 setActiveStyle(anchorTag, isCurrentPage(dashboardLink.path));
             } else {
                 // 其他页面：保留原生当前按钮，仅做高亮
-                if (anchorTag.id === dashboardLink.id) {
+                if (anchorTag && anchorTag.id === dashboardLink.id) {
                     anchorTag.removeAttribute('id');
                 }
                 // 若快捷按钮已有命中（如 Stars 页），则避免双高亮
-                setActiveStyle(anchorTag, !hasShortcutActive);
+                if (anchorTag) {
+                    setActiveStyle(anchorTag, !hasShortcutActive);
+                }
             }
             
             // 设定插入的锚点，随着循环不断向后移动，保证按钮顺序正确
-            let insertAfterNode = cloneTarget;
+            let insertAfterNode = insertAnchorNode;
             const linksToRender = isOnPresetPage ? customLinks : navPresetLinks;
 
             linksToRender.forEach(linkInfo => {
@@ -167,8 +295,8 @@
                     return;
                 }
 
-                const newNode = cloneTarget.cloneNode(true);
-                const aTag = isLiParent ? newNode.querySelector('a') : newNode;
+                const newNode = cloneTemplateNode.cloneNode(true);
+                const aTag = ensureAnchor(newNode, isTemplateLiParent);
                 
                 aTag.id = linkInfo.id;
                 aTag.href = linkInfo.href;
