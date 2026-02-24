@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.7
+// @version      0.1.8
 // @description  Add Trending, Explore, Collections and Stars buttons to the GitHub top navigation bar.
 // @description:zh-CN 在 GitHub 顶部导航栏无缝添加 Trending, Explore, Collections 和 Stars 快捷按钮。
 // @author       Ayubass
@@ -15,7 +15,7 @@
 
 (function() {
     'use strict';
-    const SCRIPT_VERSION = '0.1.7';
+    const SCRIPT_VERSION = '0.1.8';
     const CUSTOM_BUTTON_CLASS = 'custom-gh-nav-btn';
     const CUSTOM_BUTTON_ACTIVE_CLASS = 'custom-gh-nav-btn-active';
 
@@ -98,13 +98,26 @@
         const navPresetLinks = [dashboardLink, ...customLinks];
         const fixedPages = new Set(['/dashboard', '/trending', '/explore', '/collections']);
 
-        // 优先找常见入口，再兜底到 breadcrumb/context crumb（如 /<name>?tab=stars）
-        let targetNode = document.querySelector(
-            'header a[href="/dashboard"], header a[href="/trending"], header a[href="/explore"], ' +
-            'header nav[aria-label*="breadcrumb" i] a[href^="/"], ' +
-            'header a[class*="contextCrumb"][href^="/"], ' +
-            'header a[class*="Breadcrumbs-Item"][href^="/"]'
+        const isOnPresetPage = navPresetLinks.some(
+            link => fixedPages.has(link.path) && isCurrentPage(link.path)
         );
+
+        // 预设页面优先主导航；其他页面优先 breadcrumb/context crumb 的最后一项（如仓库名）
+        let targetNode = null;
+        if (isOnPresetPage) {
+            targetNode = document.querySelector(
+                'header a[href="/dashboard"], header a[href="/trending"], header a[href="/explore"]'
+            );
+        } else {
+            const breadcrumbNodes = document.querySelectorAll(
+                'header nav[aria-label*="breadcrumb" i] a[href^="/"], ' +
+                'header a[class*="contextCrumb"][href^="/"], ' +
+                'header a[class*="Breadcrumbs-Item"][href^="/"]'
+            );
+            if (breadcrumbNodes.length) {
+                targetNode = breadcrumbNodes[breadcrumbNodes.length - 1];
+            }
+        }
 
         // 兼容兜底：若未找到主导航，再尝试旧规则
         if (!targetNode) {
@@ -124,9 +137,6 @@
             const isLiParent = targetNode.parentNode.tagName.toLowerCase() === 'li';
             const cloneTarget = isLiParent ? targetNode.parentNode : targetNode;
             const anchorTag = isLiParent ? cloneTarget.querySelector('a') : cloneTarget;
-            const isOnPresetPage = navPresetLinks.some(
-                link => fixedPages.has(link.path) && isCurrentPage(link.path)
-            );
             const hasShortcutActive = navPresetLinks.some(link => isCurrentPage(link.path));
 
             if (isOnPresetPage) {
