@@ -3,8 +3,8 @@
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
 // @version      0.1.8
-// @description  Add Trending, Explore, Collections and Stars buttons to the GitHub top navigation bar.
-// @description:zh-CN 在 GitHub 顶部导航栏无缝添加 Trending, Explore, Collections 和 Stars 快捷按钮。
+// @description  Add quick access to Dashboard, Trending, Explore, Collections, and Stars from GitHub's top navigation.
+// @description:zh-CN 在 GitHub 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。
 // @author       Ayubass
 // @match        https://github.com/*
 // @icon         https://github.githubassets.com/pinned-octocat.svg
