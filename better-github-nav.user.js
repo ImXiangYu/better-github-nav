@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.1
+// @version      0.1.3
 // @description  Add Trending, Explore, Collections and Stars buttons to the GitHub top navigation bar.
 // @description:zh-CN 在 GitHub 顶部导航栏无缝添加 Trending, Explore, Collections 和 Stars 快捷按钮。
 // @author       Ayubass
@@ -15,23 +15,57 @@
 
 (function() {
     'use strict';
-    const SCRIPT_VERSION = '0.1.1';
+    const SCRIPT_VERSION = '0.1.3';
+
+    function normalizePath(href) {
+        try {
+            const url = new URL(href, location.origin);
+            const path = url.pathname.replace(/\/+$/, '');
+            return path || '/';
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function isCurrentPage(linkPath) {
+        const currentPath = location.pathname.replace(/\/+$/, '') || '/';
+        if (linkPath === '/dashboard') return currentPath === '/' || currentPath === '/dashboard';
+        if (currentPath === linkPath) return true;
+        if (linkPath !== '/' && currentPath.startsWith(`${linkPath}/`)) return true;
+
+        // Stars 页面常见为 /<username>?tab=stars
+        return location.search.includes('tab=stars') && linkPath === normalizePath('/stars');
+    }
+
+    function setActiveStyle(aTag, active) {
+        if (active) {
+            aTag.setAttribute('aria-current', 'page');
+            aTag.style.fontWeight = '600';
+            aTag.style.backgroundColor = 'var(--color-accent-subtle, rgba(9, 105, 218, 0.1))';
+            aTag.style.borderRadius = '999px';
+            aTag.style.paddingInline = '8px';
+        } else {
+            aTag.removeAttribute('aria-current');
+            aTag.style.fontWeight = '';
+            aTag.style.backgroundColor = '';
+            aTag.style.borderRadius = '';
+            aTag.style.paddingInline = '';
+        }
+    }
 
     function addCustomButtons() {
-        // 防止重复添加，检查第一个自定义按钮是否存在
-        if (document.getElementById('custom-gh-btn-trending')) return;
-
         // 获取当前登录的用户名，用来动态生成 Stars 页面的专属链接
         const userLoginMeta = document.querySelector('meta[name="user-login"]');
         const username = userLoginMeta ? userLoginMeta.getAttribute('content') : '';
         const starsUrl = username ? `/${username}?tab=stars` : '/stars';
 
-        // 定义需要批量添加的按钮列表
+        // 固定导航顺序：Dashboard / Trending / Explore / Collections / Stars
+        const dashboardLink = { id: 'custom-gh-btn-dashboard', text: 'Dashboard', href: '/dashboard', path: '/dashboard' };
         const customLinks = [
-            { id: 'custom-gh-btn-trending', text: 'Trending', href: '/trending' },
-            { id: 'custom-gh-btn-explore', text: 'Explore', href: '/explore' },
-            { id: 'custom-gh-btn-collections', text: 'Collections', href: '/collections' },
-            { id: 'custom-gh-btn-stars', text: 'Stars', href: starsUrl }
+            { id: 'custom-gh-btn-trending', text: 'Trending', href: '/trending', path: '/trending' },
+            { id: 'custom-gh-btn-explore', text: 'Explore', href: '/explore', path: '/explore' },
+            { id: 'custom-gh-btn-collections', text: 'Collections', href: '/collections', path: '/collections' },
+            { id: 'custom-gh-btn-stars', text: 'Stars', href: starsUrl, path: normalizePath(starsUrl) }
         ];
 
         // 先按稳定 href 寻找顶栏锚点，避免依赖会变化的文案与 aria-label
@@ -56,11 +90,30 @@
             // 判断父元素是不是 <li>，如果是的话需要连带 <li> 一起克隆以保证布局不乱
             const isLiParent = targetNode.parentNode.tagName.toLowerCase() === 'li';
             const cloneTarget = isLiParent ? targetNode.parentNode : targetNode;
+            const dashboardTag = isLiParent ? cloneTarget.querySelector('a') : cloneTarget;
+
+            // 将首个锚点统一改成 Dashboard，保证五个按钮顺序稳定
+            dashboardTag.id = dashboardLink.id;
+            dashboardTag.href = dashboardLink.href;
+            const dashboardInnerSpan = dashboardTag.querySelector('span');
+            if (dashboardInnerSpan) {
+                dashboardInnerSpan.textContent = dashboardLink.text;
+            } else {
+                dashboardTag.textContent = dashboardLink.text;
+            }
+            setActiveStyle(dashboardTag, isCurrentPage(dashboardLink.path));
             
             // 设定插入的锚点，随着循环不断向后移动，保证按钮顺序正确
             let insertAfterNode = cloneTarget;
 
             customLinks.forEach(linkInfo => {
+                const existing = document.getElementById(linkInfo.id);
+                if (existing) {
+                    existing.href = linkInfo.href;
+                    setActiveStyle(existing, isCurrentPage(linkInfo.path));
+                    return;
+                }
+
                 const newNode = cloneTarget.cloneNode(true);
                 const aTag = isLiParent ? newNode.querySelector('a') : newNode;
                 
@@ -74,6 +127,8 @@
                 } else {
                     aTag.textContent = linkInfo.text;
                 }
+
+                setActiveStyle(aTag, isCurrentPage(linkInfo.path));
 
                 // 将新按钮插入到锚点之后，并更新锚点
                 insertAfterNode.parentNode.insertBefore(newNode, insertAfterNode.nextSibling);
