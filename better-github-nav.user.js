@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.3
+// @version      0.1.4
 // @description  Add Trending, Explore, Collections and Stars buttons to the GitHub top navigation bar.
 // @description:zh-CN 在 GitHub 顶部导航栏无缝添加 Trending, Explore, Collections 和 Stars 快捷按钮。
 // @author       Ayubass
@@ -15,7 +15,9 @@
 
 (function() {
     'use strict';
-    const SCRIPT_VERSION = '0.1.3';
+    const SCRIPT_VERSION = '0.1.4';
+    const CUSTOM_BUTTON_CLASS = 'custom-gh-nav-btn';
+    const CUSTOM_BUTTON_ACTIVE_CLASS = 'custom-gh-nav-btn-active';
 
     function normalizePath(href) {
         try {
@@ -37,19 +39,36 @@
         return location.search.includes('tab=stars') && linkPath === normalizePath('/stars');
     }
 
+    function ensureStyles() {
+        if (document.getElementById('custom-gh-nav-style')) return;
+        const style = document.createElement('style');
+        style.id = 'custom-gh-nav-style';
+        style.textContent = `
+            a.${CUSTOM_BUTTON_CLASS} {
+                border-radius: 6px;
+                padding-inline: 8px;
+                text-decoration: none;
+            }
+            a.${CUSTOM_BUTTON_CLASS}:hover {
+                background-color: var(--color-neutral-muted, rgba(177, 186, 196, 0.12));
+                text-decoration: none;
+            }
+            a.${CUSTOM_BUTTON_CLASS}.${CUSTOM_BUTTON_ACTIVE_CLASS} {
+                background-color: var(--color-neutral-muted, rgba(177, 186, 196, 0.18));
+                font-weight: 600;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
     function setActiveStyle(aTag, active) {
+        aTag.classList.add(CUSTOM_BUTTON_CLASS);
         if (active) {
             aTag.setAttribute('aria-current', 'page');
-            aTag.style.fontWeight = '600';
-            aTag.style.backgroundColor = 'var(--color-accent-subtle, rgba(9, 105, 218, 0.1))';
-            aTag.style.borderRadius = '999px';
-            aTag.style.paddingInline = '8px';
+            aTag.classList.add(CUSTOM_BUTTON_ACTIVE_CLASS);
         } else {
             aTag.removeAttribute('aria-current');
-            aTag.style.fontWeight = '';
-            aTag.style.backgroundColor = '';
-            aTag.style.borderRadius = '';
-            aTag.style.paddingInline = '';
+            aTag.classList.remove(CUSTOM_BUTTON_ACTIVE_CLASS);
         }
     }
 
@@ -140,6 +159,7 @@
     // 1. 页面初次加载时执行
     console.info(`[Better GitHub Navigation] loaded v${SCRIPT_VERSION}`);
     window.__betterGithubNavVersion = SCRIPT_VERSION;
+    ensureStyles();
     addCustomButtons();
 
     // 2. 监听 GitHub 的 Turbo/PJAX 页面跳转事件，防止切换页面后按钮消失
