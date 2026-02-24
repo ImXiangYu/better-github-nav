@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.8
+// @version      0.1.9
 // @description  Add quick access to Dashboard, Trending, Explore, Collections, and Stars from GitHub's top navigation.
 // @description:zh-CN 在 GitHub 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。
 // @author       Ayubass
@@ -15,7 +15,7 @@
 
 (function() {
     'use strict';
-    const SCRIPT_VERSION = '0.1.8';
+    const SCRIPT_VERSION = '0.1.9';
     const CUSTOM_BUTTON_CLASS = 'custom-gh-nav-btn';
     const CUSTOM_BUTTON_ACTIVE_CLASS = 'custom-gh-nav-btn-active';
 
@@ -87,11 +87,11 @@
         const username = userLoginMeta ? userLoginMeta.getAttribute('content') : '';
         const starsUrl = username ? `/${username}?tab=stars` : '/stars';
 
-        // 固定导航顺序：Dashboard / Trending / Explore / Collections / Stars
+        // 固定导航顺序：Dashboard / Explore / Trending / Collections / Stars
         const dashboardLink = { id: 'custom-gh-btn-dashboard', text: 'Dashboard', href: '/dashboard', path: '/dashboard' };
         const customLinks = [
-            { id: 'custom-gh-btn-trending', text: 'Trending', href: '/trending', path: '/trending' },
             { id: 'custom-gh-btn-explore', text: 'Explore', href: '/explore', path: '/explore' },
+            { id: 'custom-gh-btn-trending', text: 'Trending', href: '/trending', path: '/trending' },
             { id: 'custom-gh-btn-collections', text: 'Collections', href: '/collections', path: '/collections' },
             { id: 'custom-gh-btn-stars', text: 'Stars', href: starsUrl, path: '/stars' }
         ];
