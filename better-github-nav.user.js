@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.0
+// @version      0.1.1
 // @description  Add Trending, Explore, Collections and Stars buttons to the GitHub top navigation bar.
 // @description:zh-CN 在 GitHub 顶部导航栏无缝添加 Trending, Explore, Collections 和 Stars 快捷按钮。
 // @author       Ayubass
@@ -15,6 +15,7 @@
 
 (function() {
     'use strict';
+    const SCRIPT_VERSION = '0.1.1';
 
     function addCustomButtons() {
         // 防止重复添加，检查第一个自定义按钮是否存在
@@ -33,16 +34,21 @@
             { id: 'custom-gh-btn-stars', text: 'Stars', href: starsUrl }
         ];
 
-        // 寻找 Dashboard 作为挂载点
-        const navLinks = document.querySelectorAll('header a');
-        let targetNode = null;
+        // 先按稳定 href 寻找顶栏锚点，避免依赖会变化的文案与 aria-label
+        let targetNode = document.querySelector(
+            'header a[href="/dashboard"], header a[href="/trending"], header a[href="/explore"]'
+        );
 
-        for (let link of navLinks) {
-            const text = link.textContent.trim().toLowerCase();
-            const href = link.getAttribute('href');
-            if (text === 'dashboard' || href === '/dashboard') {
-                targetNode = link;
-                break;
+        // 兼容兜底：若未找到主导航，再尝试旧规则
+        if (!targetNode) {
+            const navLinks = document.querySelectorAll('header a');
+            for (let link of navLinks) {
+                const text = link.textContent.trim().toLowerCase();
+                const href = link.getAttribute('href');
+                if (text === 'dashboard' || href === '/dashboard') {
+                    targetNode = link;
+                    break;
+                }
             }
         }
 
@@ -77,6 +83,8 @@
     }
 
     // 1. 页面初次加载时执行
+    console.info(`[Better GitHub Navigation] loaded v${SCRIPT_VERSION}`);
+    window.__betterGithubNavVersion = SCRIPT_VERSION;
     addCustomButtons();
 
     // 2. 监听 GitHub 的 Turbo/PJAX 页面跳转事件，防止切换页面后按钮消失
