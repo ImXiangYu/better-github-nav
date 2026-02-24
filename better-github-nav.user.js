@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.6
+// @version      0.1.7
 // @description  Add Trending, Explore, Collections and Stars buttons to the GitHub top navigation bar.
 // @description:zh-CN 在 GitHub 顶部导航栏无缝添加 Trending, Explore, Collections 和 Stars 快捷按钮。
 // @author       Ayubass
@@ -15,7 +15,7 @@
 
 (function() {
     'use strict';
-    const SCRIPT_VERSION = '0.1.6';
+    const SCRIPT_VERSION = '0.1.7';
     const CUSTOM_BUTTON_CLASS = 'custom-gh-nav-btn';
     const CUSTOM_BUTTON_ACTIVE_CLASS = 'custom-gh-nav-btn-active';
 
@@ -127,6 +127,7 @@
             const isOnPresetPage = navPresetLinks.some(
                 link => fixedPages.has(link.path) && isCurrentPage(link.path)
             );
+            const hasShortcutActive = navPresetLinks.some(link => isCurrentPage(link.path));
 
             if (isOnPresetPage) {
                 // 五个预设页面：首个按钮固定为 Dashboard
@@ -139,7 +140,8 @@
                 if (anchorTag.id === dashboardLink.id) {
                     anchorTag.removeAttribute('id');
                 }
-                setActiveStyle(anchorTag, true);
+                // 若快捷按钮已有命中（如 Stars 页），则避免双高亮
+                setActiveStyle(anchorTag, !hasShortcutActive);
             }
             
             // 设定插入的锚点，随着循环不断向后移动，保证按钮顺序正确
