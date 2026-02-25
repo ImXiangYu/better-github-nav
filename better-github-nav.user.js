@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.19
+// @version      0.1.25
 // @description  Add quick access to Dashboard, Trending, Explore, Collections, and Stars from GitHub's top navigation.
 // @description:zh-CN 在 GitHub 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。
 // @author       Ayubass
@@ -11,15 +11,404 @@
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @updateURL    https://raw.githubusercontent.com/ImXiangYu/better-github-nav/main/better-github-nav.user.js
 // @downloadURL  https://raw.githubusercontent.com/ImXiangYu/better-github-nav/main/better-github-nav.user.js
-// @grant        none
+// @grant        GM_registerMenuCommand
 // ==/UserScript==
 
 (function() {
     'use strict';
-    const SCRIPT_VERSION = '0.1.19';
+    const SCRIPT_VERSION = '0.1.25';
     const CUSTOM_BUTTON_CLASS = 'custom-gh-nav-btn';
     const CUSTOM_BUTTON_ACTIVE_CLASS = 'custom-gh-nav-btn-active';
     const CUSTOM_BUTTON_COMPACT_CLASS = 'custom-gh-nav-btn-compact';
+    const QUICK_LINK_MARK_ATTR = 'data-better-gh-nav-quick-link';
+    const CONFIG_STORAGE_KEY = 'better-gh-nav-config-v1';
+    const UI_LANG_STORAGE_KEY = 'better-gh-nav-ui-lang-v1';
+    const SETTINGS_OVERLAY_ID = 'custom-gh-nav-settings-overlay';
+    const SETTINGS_PANEL_ID = 'custom-gh-nav-settings-panel';
+    const SETTINGS_MESSAGE_ID = 'custom-gh-nav-settings-message';
+    const DEFAULT_LINK_KEYS = ['dashboard', 'explore', 'trending', 'collections', 'stars'];
+    const PRESET_LINKS = [
+        { key: 'dashboard', text: 'Dashboard', path: '/dashboard', getHref: () => '/dashboard' },
+        { key: 'explore', text: 'Explore', path: '/explore', getHref: () => '/explore' },
+        { key: 'trending', text: 'Trending', path: '/trending', getHref: () => '/trending' },
+        { key: 'collections', text: 'Collections', path: '/collections', getHref: () => '/collections' },
+        { key: 'stars', text: 'Stars', path: '/stars', getHref: username => (username ? `/${username}?tab=stars` : '/stars') }
+    ];
+    const I18N = {
+        zh: {
+            menuOpenSettings: 'Better GitHub Nav: 打开设置面板',
+            menuResetSettings: 'Better GitHub Nav: 重置快捷链接配置',
+            menuLangZh: 'Better GitHub Nav: 界面语言 -> 中文',
+            menuLangEn: 'Better GitHub Nav: 界面语言 -> English',
+            menuLangAuto: 'Better GitHub Nav: 界面语言 -> 自动（跟随页面）',
+            resetConfirm: '确认重置快捷链接配置为默认值吗？',
+            panelTitle: 'Better GitHub Nav 设置',
+            panelDesc: '勾选决定显示项，拖动整行（或右侧手柄）调整显示顺序。',
+            resetDefault: '恢复默认',
+            cancel: '取消',
+            saveAndRefresh: '保存并刷新',
+            restoredPendingSave: '已恢复默认，点击保存后生效。',
+            atLeastOneLink: '至少保留 1 个快捷链接。',
+            dragHandleTitle: '拖动调整顺序',
+            dragRowTitle: '拖动整行调整顺序'
+        },
+        en: {
+            menuOpenSettings: 'Better GitHub Nav: Open Settings Panel',
+            menuResetSettings: 'Better GitHub Nav: Reset Quick Link Config',
+            menuLangZh: 'Better GitHub Nav: UI Language -> 中文',
+            menuLangEn: 'Better GitHub Nav: UI Language -> English',
+            menuLangAuto: 'Better GitHub Nav: UI Language -> Auto (Follow Page)',
+            resetConfirm: 'Reset quick-link config to defaults?',
+            panelTitle: 'Better GitHub Nav Settings',
+            panelDesc: 'Select visible links and drag the row (or handle) to reorder.',
+            resetDefault: 'Reset to Default',
+            cancel: 'Cancel',
+            saveAndRefresh: 'Save and Refresh',
+            restoredPendingSave: 'Defaults restored. Click save to apply.',
+            atLeastOneLink: 'Keep at least 1 quick link.',
+            dragHandleTitle: 'Drag to reorder',
+            dragRowTitle: 'Drag row to reorder'
+        }
+    };
+    let settingsEscHandler = null;
+    let uiLang = detectUiLang();
+
+    function t(key, vars = {}) {
+        const dict = I18N[uiLang] || I18N.en;
+        const fallback = I18N.en;
+        const template = dict[key] || fallback[key] || key;
+        return template.replace(/\{(\w+)\}/g, (_, varName) => String(vars[varName] ?? ''));
+    }
+
+    function detectUiLang() {
+        try {
+            const preferredLang = (localStorage.getItem(UI_LANG_STORAGE_KEY) || '').toLowerCase();
+            if (preferredLang === 'zh' || preferredLang === 'en') return preferredLang;
+        } catch (e) {
+            // ignore storage read failure and fallback to auto detection
+        }
+
+        const autoLang = (document.documentElement.lang || navigator.language || '').toLowerCase();
+        return autoLang.startsWith('zh') ? 'zh' : 'en';
+    }
+
+    function setUiLangPreference(lang) {
+        try {
+            if (lang === 'zh' || lang === 'en') {
+                localStorage.setItem(UI_LANG_STORAGE_KEY, lang);
+            } else {
+                localStorage.removeItem(UI_LANG_STORAGE_KEY);
+            }
+        } catch (e) {
+            // ignore storage write failure; auto detection still works
+        }
+        uiLang = detectUiLang();
+    }
+
+    function sanitizeKeys(keys) {
+        const validSet = new Set(DEFAULT_LINK_KEYS);
+        const seen = new Set();
+        const result = [];
+        keys.forEach(key => {
+            if (validSet.has(key) && !seen.has(key)) {
+                seen.add(key);
+                result.push(key);
+            }
+        });
+        return result;
+    }
+
+    function sanitizeConfig(rawConfig) {
+        const enabledKeys = sanitizeKeys(Array.isArray(rawConfig?.enabledKeys) ? rawConfig.enabledKeys : DEFAULT_LINK_KEYS);
+        const orderKeysRaw = sanitizeKeys(Array.isArray(rawConfig?.orderKeys) ? rawConfig.orderKeys : DEFAULT_LINK_KEYS);
+        const orderSet = new Set(orderKeysRaw);
+        const orderKeys = [
+            ...orderKeysRaw,
+            ...DEFAULT_LINK_KEYS.filter(key => !orderSet.has(key))
+        ];
+        return {
+            enabledKeys: enabledKeys.length ? enabledKeys : DEFAULT_LINK_KEYS.slice(),
+            orderKeys: orderKeys.length ? orderKeys : DEFAULT_LINK_KEYS.slice()
+        };
+    }
+
+    function loadConfig() {
+        try {
+            const raw = localStorage.getItem(CONFIG_STORAGE_KEY);
+            if (!raw) return sanitizeConfig({});
+            return sanitizeConfig(JSON.parse(raw));
+        } catch (e) {
+            return sanitizeConfig({});
+        }
+    }
+
+    function saveConfig(config) {
+        localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(sanitizeConfig(config)));
+    }
+
+    function getConfiguredLinks(username) {
+        const config = loadConfig();
+        const presetMap = new Map(
+            PRESET_LINKS.map(link => [link.key, {
+                ...link,
+                id: `custom-gh-btn-${link.key}`,
+                href: link.getHref(username)
+            }])
+        );
+        return config.orderKeys
+            .filter(key => config.enabledKeys.includes(key))
+            .map(key => presetMap.get(key))
+            .filter(Boolean);
+    }
+
+    function getDisplayNameByKey(key) {
+        const link = PRESET_LINKS.find(item => item.key === key);
+        return link ? link.text : key;
+    }
+
+    function closeConfigPanel() {
+        const overlay = document.getElementById(SETTINGS_OVERLAY_ID);
+        if (overlay) overlay.remove();
+        if (settingsEscHandler) {
+            document.removeEventListener('keydown', settingsEscHandler);
+            settingsEscHandler = null;
+        }
+    }
+
+    function createPanelState(config) {
+        const safeConfig = sanitizeConfig(config);
+        return {
+            order: safeConfig.orderKeys.slice(),
+            enabledSet: new Set(safeConfig.enabledKeys)
+        };
+    }
+
+    function reorderKeys(state, draggedKey, targetKey, placeAfter = false) {
+        const fromIndex = state.order.indexOf(draggedKey);
+        const targetIndex = state.order.indexOf(targetKey);
+        if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) return false;
+
+        const [movedKey] = state.order.splice(fromIndex, 1);
+        let insertIndex = targetIndex + (placeAfter ? 1 : 0);
+        if (fromIndex < targetIndex) {
+            insertIndex -= 1;
+        }
+        state.order.splice(insertIndex, 0, movedKey);
+        return true;
+    }
+
+    function clearDragClasses(listEl) {
+        const rows = listEl.querySelectorAll('.custom-gh-nav-settings-row');
+        rows.forEach(row => {
+            row.classList.remove('custom-gh-nav-settings-row-dragging');
+            row.classList.remove('custom-gh-nav-settings-row-drag-over');
+        });
+    }
+
+    function renderPanelRows(listEl, state) {
+        listEl.replaceChildren();
+        state.order.forEach(key => {
+            const row = document.createElement('div');
+            row.className = 'custom-gh-nav-settings-row';
+            row.draggable = true;
+            row.title = t('dragRowTitle');
+            row.dataset.rowKey = key;
+
+            const left = document.createElement('label');
+            left.className = 'custom-gh-nav-settings-row-left';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = state.enabledSet.has(key);
+            checkbox.addEventListener('change', () => {
+                if (checkbox.checked) {
+                    state.enabledSet.add(key);
+                } else {
+                    state.enabledSet.delete(key);
+                }
+            });
+
+            const text = document.createElement('span');
+            text.textContent = `${getDisplayNameByKey(key)} (${key})`;
+
+            left.appendChild(checkbox);
+            left.appendChild(text);
+
+            const actions = document.createElement('div');
+            actions.className = 'custom-gh-nav-settings-row-actions';
+
+            const dragHandle = document.createElement('span');
+            dragHandle.className = 'custom-gh-nav-settings-drag-handle';
+            dragHandle.textContent = '≡';
+            dragHandle.title = t('dragHandleTitle');
+            dragHandle.setAttribute('aria-hidden', 'true');
+
+            row.addEventListener('dragstart', event => {
+                row.classList.add('custom-gh-nav-settings-row-dragging');
+                listEl.dataset.dragKey = key;
+                if (event.dataTransfer) {
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', key);
+                }
+            });
+            row.addEventListener('dragend', () => {
+                delete listEl.dataset.dragKey;
+                clearDragClasses(listEl);
+            });
+
+            row.addEventListener('dragover', event => {
+                event.preventDefault();
+                row.classList.add('custom-gh-nav-settings-row-drag-over');
+                if (event.dataTransfer) {
+                    event.dataTransfer.dropEffect = 'move';
+                }
+            });
+            row.addEventListener('dragleave', () => {
+                row.classList.remove('custom-gh-nav-settings-row-drag-over');
+            });
+            row.addEventListener('drop', event => {
+                event.preventDefault();
+                row.classList.remove('custom-gh-nav-settings-row-drag-over');
+
+                const draggedKey = (event.dataTransfer && event.dataTransfer.getData('text/plain'))
+                    || listEl.dataset.dragKey
+                    || '';
+                if (!draggedKey || draggedKey === key) return;
+
+                const rect = row.getBoundingClientRect();
+                const placeAfter = event.clientY > rect.top + rect.height / 2;
+                if (reorderKeys(state, draggedKey, key, placeAfter)) {
+                    renderPanelRows(listEl, state);
+                }
+            });
+
+            actions.appendChild(dragHandle);
+            row.appendChild(left);
+            row.appendChild(actions);
+            listEl.appendChild(row);
+        });
+    }
+
+    function openConfigPanel() {
+        closeConfigPanel();
+        ensureStyles();
+
+        const state = createPanelState(loadConfig());
+        const overlay = document.createElement('div');
+        overlay.id = SETTINGS_OVERLAY_ID;
+
+        const panel = document.createElement('div');
+        panel.id = SETTINGS_PANEL_ID;
+
+        const title = document.createElement('h3');
+        title.className = 'custom-gh-nav-settings-title';
+        title.textContent = t('panelTitle');
+
+        const desc = document.createElement('p');
+        desc.className = 'custom-gh-nav-settings-desc';
+        desc.textContent = t('panelDesc');
+
+        const list = document.createElement('div');
+        list.className = 'custom-gh-nav-settings-list';
+        renderPanelRows(list, state);
+
+        const message = document.createElement('div');
+        message.id = SETTINGS_MESSAGE_ID;
+        message.className = 'custom-gh-nav-settings-message';
+        message.setAttribute('role', 'status');
+        message.setAttribute('aria-live', 'polite');
+
+        const footer = document.createElement('div');
+        footer.className = 'custom-gh-nav-settings-footer';
+
+        const resetBtn = document.createElement('button');
+        resetBtn.type = 'button';
+        resetBtn.className = 'custom-gh-nav-settings-btn';
+        resetBtn.textContent = t('resetDefault');
+        resetBtn.addEventListener('click', () => {
+            state.order = DEFAULT_LINK_KEYS.slice();
+            state.enabledSet = new Set(DEFAULT_LINK_KEYS);
+            renderPanelRows(list, state);
+            message.textContent = t('restoredPendingSave');
+        });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'custom-gh-nav-settings-btn';
+        cancelBtn.textContent = t('cancel');
+        cancelBtn.addEventListener('click', closeConfigPanel);
+
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.className = 'custom-gh-nav-settings-btn custom-gh-nav-settings-btn-primary';
+        saveBtn.textContent = t('saveAndRefresh');
+        saveBtn.addEventListener('click', () => {
+            const enabledKeys = state.order.filter(key => state.enabledSet.has(key));
+            if (!enabledKeys.length) {
+                message.textContent = t('atLeastOneLink');
+                return;
+            }
+            saveConfig({
+                enabledKeys,
+                orderKeys: state.order.slice()
+            });
+            closeConfigPanel();
+            location.reload();
+        });
+
+        footer.appendChild(resetBtn);
+        footer.appendChild(cancelBtn);
+        footer.appendChild(saveBtn);
+
+        panel.appendChild(title);
+        panel.appendChild(desc);
+        panel.appendChild(list);
+        panel.appendChild(message);
+        panel.appendChild(footer);
+        overlay.appendChild(panel);
+
+        overlay.addEventListener('click', event => {
+            if (event.target === overlay) closeConfigPanel();
+        });
+
+        settingsEscHandler = event => {
+            if (event.key === 'Escape') closeConfigPanel();
+        };
+        document.addEventListener('keydown', settingsEscHandler);
+
+        document.body.appendChild(overlay);
+    }
+
+    function registerConfigMenu() {
+        if (typeof GM_registerMenuCommand !== 'function') return;
+        GM_registerMenuCommand(t('menuOpenSettings'), openConfigPanel);
+
+        GM_registerMenuCommand(t('menuResetSettings'), () => {
+            const shouldReset = confirm(t('resetConfirm'));
+            if (!shouldReset) return;
+            localStorage.removeItem(CONFIG_STORAGE_KEY);
+            closeConfigPanel();
+            location.reload();
+        });
+
+        GM_registerMenuCommand(t('menuLangZh'), () => {
+            setUiLangPreference('zh');
+            closeConfigPanel();
+            location.reload();
+        });
+
+        GM_registerMenuCommand(t('menuLangEn'), () => {
+            setUiLangPreference('en');
+            closeConfigPanel();
+            location.reload();
+        });
+
+        GM_registerMenuCommand(t('menuLangAuto'), () => {
+            setUiLangPreference('auto');
+            closeConfigPanel();
+            location.reload();
+        });
+    }
 
     function normalizePath(href) {
         try {
@@ -69,6 +458,131 @@
             a.${CUSTOM_BUTTON_CLASS}.${CUSTOM_BUTTON_ACTIVE_CLASS} {
                 background-color: var(--color-neutral-muted, rgba(177, 186, 196, 0.18));
                 font-weight: 600;
+            }
+            #${SETTINGS_OVERLAY_ID} {
+                position: fixed;
+                inset: 0;
+                z-index: 2147483647;
+                background: rgba(0, 0, 0, 0.45);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 16px;
+                box-sizing: border-box;
+            }
+            #${SETTINGS_PANEL_ID} {
+                width: min(560px, 100%);
+                max-height: min(80vh, 720px);
+                overflow: auto;
+                background: var(--color-canvas-default, #fff);
+                color: var(--color-fg-default, #1f2328);
+                border: 1px solid var(--color-border-default, #d1d9e0);
+                border-radius: 10px;
+                box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+                padding: 16px;
+                box-sizing: border-box;
+            }
+            .custom-gh-nav-settings-title {
+                margin: 0 0 8px;
+                font-size: 16px;
+                line-height: 1.4;
+            }
+            .custom-gh-nav-settings-desc {
+                margin: 0 0 12px;
+                color: var(--color-fg-muted, #656d76);
+                font-size: 13px;
+            }
+            .custom-gh-nav-settings-list {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .custom-gh-nav-settings-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                border: 1px solid var(--color-border-muted, #d8dee4);
+                border-radius: 8px;
+                padding: 8px 10px;
+                background: var(--color-canvas-subtle, #f6f8fa);
+                cursor: grab;
+            }
+            .custom-gh-nav-settings-row:active {
+                cursor: grabbing;
+            }
+            .custom-gh-nav-settings-row-left {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                user-select: none;
+                font-size: 13px;
+            }
+            .custom-gh-nav-settings-row-left input {
+                cursor: pointer;
+            }
+            .custom-gh-nav-settings-row-actions {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .custom-gh-nav-settings-drag-handle {
+                border: 1px solid var(--color-border-default, #d1d9e0);
+                background: var(--color-btn-bg, #f6f8fa);
+                color: var(--color-fg-muted, #656d76);
+                border-radius: 6px;
+                width: 32px;
+                height: 26px;
+                line-height: 1;
+                font-size: 16px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                user-select: none;
+                pointer-events: none;
+            }
+            .custom-gh-nav-settings-row-dragging {
+                opacity: 0.55;
+            }
+            .custom-gh-nav-settings-row-drag-over {
+                border-color: var(--color-accent-fg, #0969da);
+                background: var(--color-accent-subtle, #ddf4ff);
+            }
+            .custom-gh-nav-settings-btn {
+                border: 1px solid var(--color-border-default, #d1d9e0);
+                background: var(--color-btn-bg, #f6f8fa);
+                color: var(--color-fg-default, #1f2328);
+                border-radius: 6px;
+                padding: 4px 10px;
+                font-size: 12px;
+                cursor: pointer;
+            }
+            .custom-gh-nav-settings-btn:hover {
+                background: var(--color-btn-hover-bg, #f3f4f6);
+            }
+            .custom-gh-nav-settings-btn:disabled {
+                opacity: 0.45;
+                cursor: not-allowed;
+            }
+            .custom-gh-nav-settings-btn-primary {
+                background: var(--color-btn-primary-bg, #1f883d);
+                border-color: var(--color-btn-primary-bg, #1f883d);
+                color: var(--color-btn-primary-text, #fff);
+            }
+            .custom-gh-nav-settings-btn-primary:hover {
+                background: var(--color-btn-primary-hover-bg, #1a7f37);
+            }
+            .custom-gh-nav-settings-footer {
+                margin-top: 12px;
+                display: flex;
+                justify-content: flex-end;
+                gap: 8px;
+            }
+            .custom-gh-nav-settings-message {
+                min-height: 20px;
+                margin-top: 8px;
+                color: var(--color-attention-fg, #9a6700);
+                font-size: 12px;
             }
         `;
         document.head.appendChild(style);
@@ -151,43 +665,77 @@
         return aTag;
     }
 
+    function getAnchorHostNode(anchor) {
+        if (!anchor || !anchor.parentNode) return anchor;
+        return anchor.parentNode.tagName.toLowerCase() === 'li' ? anchor.parentNode : anchor;
+    }
+
+    function cleanupQuickLinksForContainer(renderParent, keepNode) {
+        const quickAnchors = Array.from(
+            document.querySelectorAll(
+                'header a[id^="custom-gh-btn-"], header a[' + QUICK_LINK_MARK_ATTR + '="1"]'
+            )
+        );
+
+        quickAnchors.forEach(anchor => {
+            const host = getAnchorHostNode(anchor);
+            if (!host || !host.parentNode) return;
+            if (host === keepNode) return;
+            if (host.parentNode !== renderParent) {
+                host.remove();
+                return;
+            }
+            host.remove();
+        });
+    }
+
     function addCustomButtons() {
         // 获取当前登录的用户名，用来动态生成 Stars 页面的专属链接
         const userLoginMeta = document.querySelector('meta[name="user-login"]');
         const username = userLoginMeta ? userLoginMeta.getAttribute('content') : '';
-        const starsUrl = username ? `/${username}?tab=stars` : '/stars';
-
-        // 固定导航顺序：Dashboard / Explore / Trending / Collections / Stars
-        const dashboardLink = { id: 'custom-gh-btn-dashboard', text: 'Dashboard', href: '/dashboard', path: '/dashboard' };
-        const customLinks = [
-            { id: 'custom-gh-btn-explore', text: 'Explore', href: '/explore', path: '/explore' },
-            { id: 'custom-gh-btn-trending', text: 'Trending', href: '/trending', path: '/trending' },
-            { id: 'custom-gh-btn-collections', text: 'Collections', href: '/collections', path: '/collections' },
-            { id: 'custom-gh-btn-stars', text: 'Stars', href: starsUrl, path: '/stars' }
-        ];
-        const navPresetLinks = [dashboardLink, ...customLinks];
+        const navPresetLinks = getConfiguredLinks(username);
+        if (!navPresetLinks.length) return;
+        const primaryLink = navPresetLinks[0];
+        const extraLinks = navPresetLinks.slice(1);
         const fixedPages = new Set(['/dashboard', '/trending', '/explore', '/collections']);
+        const shortcutPaths = new Set(PRESET_LINKS.map(link => link.path));
         const compactPages = new Set(['/issues', '/pulls', '/repositories']);
 
-        const isOnPresetPage = navPresetLinks.some(
-            link => fixedPages.has(link.path) && isCurrentPage(link.path)
-        );
+        const isOnPresetPage = Array.from(fixedPages).some(path => isCurrentPage(path));
         const shouldUseCompactButtons = Array.from(compactPages).some(path => isCurrentPage(path));
 
         // 预设页面优先主导航；其他页面优先 breadcrumb/context crumb 的最后一项（如仓库名）
         let targetNode = null;
+        let targetSource = '';
         if (isOnPresetPage) {
             targetNode = document.querySelector(
-                'header a[href="/dashboard"], header a[href="/trending"], header a[href="/explore"]'
+                'header nav a[href="/dashboard"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                'header nav a[href="/trending"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                'header nav a[href="/explore"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"])'
             );
+            if (targetNode) targetSource = 'preset-nav';
+            if (!targetNode) {
+                targetNode = document.querySelector(
+                    'header nav a[id^="custom-gh-btn-"], header nav a[' + QUICK_LINK_MARK_ATTR + '="1"]'
+                );
+                if (targetNode) targetSource = 'preset-quick';
+            }
         } else {
-            const breadcrumbNodes = document.querySelectorAll(
+            const breadcrumbNodes = Array.from(document.querySelectorAll(
                 'header nav[aria-label*="breadcrumb" i] a[href^="/"], ' +
                 'header a[class*="contextCrumb"][href^="/"], ' +
                 'header a[class*="Breadcrumbs-Item"][href^="/"]'
-            );
+            )).filter(link => {
+                if (link.id && link.id.startsWith('custom-gh-btn-')) return false;
+                if (link.getAttribute(QUICK_LINK_MARK_ATTR) === '1') return false;
+                const href = normalizePath(link.getAttribute('href') || '');
+                if (!href || href === '/') return false;
+                if (shortcutPaths.has(href)) return false;
+                return true;
+            });
             if (breadcrumbNodes.length) {
                 targetNode = breadcrumbNodes[breadcrumbNodes.length - 1];
+                targetSource = 'breadcrumb';
             }
         }
 
@@ -199,16 +747,20 @@
                 'header nav [aria-current="page"]:not(a), ' +
                 'header nav [data-active="true"]:not(a)'
             );
+            if (targetNode) targetSource = 'current-nav';
         }
 
         // 兼容兜底：若未找到主导航，再尝试旧规则
         if (!targetNode) {
-            const navLinks = document.querySelectorAll('header a');
+            const navLinks = document.querySelectorAll(
+                'header a:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"])'
+            );
             for (let link of navLinks) {
                 const text = link.textContent.trim().toLowerCase();
                 const href = link.getAttribute('href');
                 if (text === 'dashboard' || href === '/dashboard') {
                     targetNode = link;
+                    targetSource = 'legacy-dashboard';
                     break;
                 }
             }
@@ -232,6 +784,7 @@
                 const href = normalizePath(link.getAttribute('href') || '');
                 if (!href || href === '/') return false;
                 if (link.id && link.id.startsWith('custom-gh-btn-')) return false;
+                if (link.getAttribute(QUICK_LINK_MARK_ATTR) === '1') return false;
                 return true;
             });
             if (globalNavCandidates.length) {
@@ -239,6 +792,7 @@
                     const href = normalizePath(link.getAttribute('href') || '');
                     return href === currentPath;
                 }) || globalNavCandidates[globalNavCandidates.length - 1];
+                if (targetNode) targetSource = 'global-nav';
             }
         }
 
@@ -250,6 +804,7 @@
             );
             if (currentTextNode) {
                 targetNode = currentTextNode;
+                targetSource = 'current-text';
             }
         }
 
@@ -262,6 +817,7 @@
             );
             if (contextCrumbTextNodes.length) {
                 targetNode = contextCrumbTextNodes[contextCrumbTextNodes.length - 1];
+                targetSource = 'crumb-text';
             }
         }
 
@@ -270,24 +826,26 @@
         if (targetNode) {
             const localNav = targetNode.closest('nav, ul, ol');
             const localAnchors = localNav
-                ? localNav.querySelectorAll('a[href^="/"]:not([id^="custom-gh-btn-"])')
+                ? localNav.querySelectorAll(
+                    'a[href^="/"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"])'
+                )
                 : [];
 
             if (localAnchors.length) {
                 templateNode = localAnchors[localAnchors.length - 1];
             } else {
                 const nativeNavAnchors = document.querySelectorAll(
-                    'header nav[aria-label*="breadcrumb" i] a[href^="/"]:not([id^="custom-gh-btn-"]), ' +
-                    'header a[class*="contextCrumb"][href^="/"]:not([id^="custom-gh-btn-"]), ' +
-                    'header a[class*="Breadcrumbs-Item"][href^="/"]:not([id^="custom-gh-btn-"]), ' +
-                    'header nav[aria-label*="global" i] a[href^="/"]:not([id^="custom-gh-btn-"]), ' +
-                    'header nav[aria-label*="header" i] a[href^="/"]:not([id^="custom-gh-btn-"]), ' +
-                    'header nav a[href="/pulls"]:not([id^="custom-gh-btn-"]), ' +
-                    'header nav a[href="/issues"]:not([id^="custom-gh-btn-"]), ' +
-                    'header nav a[href="/repositories"]:not([id^="custom-gh-btn-"]), ' +
-                    'header nav a[href="/codespaces"]:not([id^="custom-gh-btn-"]), ' +
-                    'header nav a[href="/marketplace"]:not([id^="custom-gh-btn-"]), ' +
-                    'header nav a[href="/explore"]:not([id^="custom-gh-btn-"])'
+                    'header nav[aria-label*="breadcrumb" i] a[href^="/"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header a[class*="contextCrumb"][href^="/"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header a[class*="Breadcrumbs-Item"][href^="/"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header nav[aria-label*="global" i] a[href^="/"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header nav[aria-label*="header" i] a[href^="/"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header nav a[href="/pulls"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header nav a[href="/issues"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header nav a[href="/repositories"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header nav a[href="/codespaces"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header nav a[href="/marketplace"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header nav a[href="/explore"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"])'
                 );
                 if (nativeNavAnchors.length) {
                     templateNode = nativeNavAnchors[nativeNavAnchors.length - 1];
@@ -308,18 +866,24 @@
             const anchorTag = (targetHasAnchor || shouldForceCreateAnchor)
                 ? ensureAnchor(insertAnchorNode, isTargetLiParent)
                 : null;
+            cleanupQuickLinksForContainer(insertAnchorNode.parentNode, insertAnchorNode);
+
             const hasShortcutActive = navPresetLinks.some(link => isCurrentPage(link.path));
 
-            if (isOnPresetPage && anchorTag) {
-                // 五个预设页面：首个按钮固定为 Dashboard
-                anchorTag.id = dashboardLink.id;
-                anchorTag.href = dashboardLink.href;
-                setLinkText(anchorTag, dashboardLink.text);
-                setActiveStyle(anchorTag, isCurrentPage(dashboardLink.path), shouldUseCompactButtons);
+            if (isOnPresetPage && anchorTag && primaryLink) {
+                // 预设页面：首个按钮替换为当前配置顺序中的第一个
+                anchorTag.id = primaryLink.id;
+                anchorTag.setAttribute(QUICK_LINK_MARK_ATTR, '1');
+                anchorTag.href = primaryLink.href;
+                setLinkText(anchorTag, primaryLink.text);
+                setActiveStyle(anchorTag, isCurrentPage(primaryLink.path), shouldUseCompactButtons);
             } else {
                 // 其他页面：保留原生当前按钮，仅做高亮
-                if (anchorTag && anchorTag.id === dashboardLink.id) {
+                if (anchorTag && anchorTag.id && anchorTag.id.startsWith('custom-gh-btn-')) {
                     anchorTag.removeAttribute('id');
+                }
+                if (anchorTag) {
+                    anchorTag.removeAttribute(QUICK_LINK_MARK_ATTR);
                 }
                 // 若快捷按钮已有命中（如 Stars 页），则避免双高亮
                 if (anchorTag) {
@@ -329,21 +893,14 @@
             
             // 设定插入的锚点，随着循环不断向后移动，保证按钮顺序正确
             let insertAfterNode = insertAnchorNode;
-            const linksToRender = isOnPresetPage ? customLinks : navPresetLinks;
+            const linksToRender = isOnPresetPage ? extraLinks : navPresetLinks;
 
             linksToRender.forEach(linkInfo => {
-                const existing = document.getElementById(linkInfo.id);
-                if (existing) {
-                    existing.href = linkInfo.href;
-                    setLinkText(existing, linkInfo.text);
-                    setActiveStyle(existing, isCurrentPage(linkInfo.path), shouldUseCompactButtons);
-                    return;
-                }
-
                 const newNode = cloneTemplateNode.cloneNode(true);
                 const aTag = ensureAnchor(newNode, isTemplateLiParent);
                 
                 aTag.id = linkInfo.id;
+                aTag.setAttribute(QUICK_LINK_MARK_ATTR, '1');
                 aTag.href = linkInfo.href;
                 setLinkText(aTag, linkInfo.text);
 
@@ -359,6 +916,8 @@
     // 1. 页面初次加载时执行
     console.info(`[Better GitHub Navigation] loaded v${SCRIPT_VERSION}`);
     window.__betterGithubNavVersion = SCRIPT_VERSION;
+    window.__openBetterGithubNavSettings = openConfigPanel;
+    registerConfigMenu();
     ensureStyles();
     addCustomButtons();
 
@@ -368,7 +927,7 @@
 
     // 3. 终极备用方案：使用 MutationObserver 监听 DOM 变化
     const observer = new MutationObserver(() => {
-        if (!document.getElementById('custom-gh-btn-trending') && document.querySelector('header')) {
+        if (!document.querySelector('[id^="custom-gh-btn-"]') && document.querySelector('header')) {
             addCustomButtons();
         }
     });
