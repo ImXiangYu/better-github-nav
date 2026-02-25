@@ -1,0 +1,15 @@
+{
+  "name": "better-github-nav",
+  "version": "0.1.26",
+  "description": "Build tools for the Better GitHub Navigation userscript.",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "check:build": "npm run build && git diff --exit-code -- better-github-nav.user.js"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.27.3"
+  }
+}
