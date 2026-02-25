@@ -11,17 +11,19 @@
 - 仅在必须完整查看文件原文时使用 `Get-Content`。
 
 ## 版本约定
-- 每次修改脚本都要递增小版本号（patch），并同步更新脚本内用于控制台打印的版本常量，便于确认变更已生效。
+- 每次修改脚本都要递增小版本号（patch）。
+- 版本号以 `package.json` 为单一来源；通过构建自动写入 `better-github-nav.user.js` 的 `@version` 与 `SCRIPT_VERSION`，不要手改产物内版本号。
 
 ## 发布流程（dev -> main）
 - 当用户准备将 `dev` 分支合并到 `main`，或要求 AI 生成该合并的 PR 信息时，AI 必须先提醒：先完整执行以下发布流程，再进行 PR 文案与合并动作。
 - 标准发布流程：
   1. 确认源码改动已完成（如 `src/` 内模块）。
-  2. 递增补丁版本号（patch），并确保 `@version` 与脚本内版本常量一致。
-  3. 执行构建，生成最新 `better-github-nav.user.js`（发布文件）。
+  2. 执行 `npm version patch --no-git-tag-version`（仅升级本地版本号，不创建 tag）。
+  3. 执行 `npm run build`，生成最新 `better-github-nav.user.js`（发布文件）。
   4. 本地自检产物（至少检查脚本头版本号、控制台版本常量、关键功能是否可用）。
-  5. 将源码改动与构建产物一并提交到 `dev`。
-  6. 仅在以上步骤完成后，再编写/提交 `dev -> main` 的 PR 信息。
+  5. 将源码改动与构建产物一并提交到 `dev`（至少包含 `src/`、`scripts/`、`package.json`、`package-lock.json`、`better-github-nav.user.js`）。
+  6. 推送后确认构建校验工作流通过（`Verify Userscript Build`）。
+  7. 仅在以上步骤完成后，再编写/提交 `dev -> main` 的 PR 信息。
 
 ## 输出要求
 - 默认使用中文
