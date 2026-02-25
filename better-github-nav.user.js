@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.19
+// @version      0.1.20
 // @description  Add quick access to Dashboard, Trending, Explore, Collections, and Stars from GitHub's top navigation.
 // @description:zh-CN 在 GitHub 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。
 // @author       Ayubass
@@ -11,15 +11,122 @@
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @updateURL    https://raw.githubusercontent.com/ImXiangYu/better-github-nav/main/better-github-nav.user.js
 // @downloadURL  https://raw.githubusercontent.com/ImXiangYu/better-github-nav/main/better-github-nav.user.js
-// @grant        none
+// @grant        GM_registerMenuCommand
 // ==/UserScript==
 
 (function() {
     'use strict';
-    const SCRIPT_VERSION = '0.1.19';
+    const SCRIPT_VERSION = '0.1.20';
     const CUSTOM_BUTTON_CLASS = 'custom-gh-nav-btn';
     const CUSTOM_BUTTON_ACTIVE_CLASS = 'custom-gh-nav-btn-active';
     const CUSTOM_BUTTON_COMPACT_CLASS = 'custom-gh-nav-btn-compact';
+    const CONFIG_STORAGE_KEY = 'better-gh-nav-config-v1';
+    const DEFAULT_LINK_KEYS = ['dashboard', 'explore', 'trending', 'collections', 'stars'];
+    const PRESET_LINKS = [
+        { key: 'dashboard', text: 'Dashboard', path: '/dashboard', getHref: () => '/dashboard' },
+        { key: 'explore', text: 'Explore', path: '/explore', getHref: () => '/explore' },
+        { key: 'trending', text: 'Trending', path: '/trending', getHref: () => '/trending' },
+        { key: 'collections', text: 'Collections', path: '/collections', getHref: () => '/collections' },
+        { key: 'stars', text: 'Stars', path: '/stars', getHref: username => (username ? `/${username}?tab=stars` : '/stars') }
+    ];
+
+    function parseCsvToKeys(input) {
+        return (input || '')
+            .split(',')
+            .map(x => x.trim().toLowerCase())
+            .filter(Boolean);
+    }
+
+    function sanitizeKeys(keys) {
+        const validSet = new Set(DEFAULT_LINK_KEYS);
+        const seen = new Set();
+        const result = [];
+        keys.forEach(key => {
+            if (validSet.has(key) && !seen.has(key)) {
+                seen.add(key);
+                result.push(key);
+            }
+        });
+        return result;
+    }
+
+    function sanitizeConfig(rawConfig) {
+        const enabledKeys = sanitizeKeys(Array.isArray(rawConfig?.enabledKeys) ? rawConfig.enabledKeys : DEFAULT_LINK_KEYS);
+        const orderKeysRaw = sanitizeKeys(Array.isArray(rawConfig?.orderKeys) ? rawConfig.orderKeys : DEFAULT_LINK_KEYS);
+        const orderSet = new Set(orderKeysRaw);
+        const orderKeys = [
+            ...orderKeysRaw.filter(key => enabledKeys.includes(key)),
+            ...enabledKeys.filter(key => !orderSet.has(key))
+        ];
+        return {
+            enabledKeys: enabledKeys.length ? enabledKeys : DEFAULT_LINK_KEYS.slice(),
+            orderKeys: orderKeys.length ? orderKeys : DEFAULT_LINK_KEYS.slice()
+        };
+    }
+
+    function loadConfig() {
+        try {
+            const raw = localStorage.getItem(CONFIG_STORAGE_KEY);
+            if (!raw) return sanitizeConfig({});
+            return sanitizeConfig(JSON.parse(raw));
+        } catch (e) {
+            return sanitizeConfig({});
+        }
+    }
+
+    function saveConfig(config) {
+        localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(sanitizeConfig(config)));
+    }
+
+    function getConfiguredLinks(username) {
+        const config = loadConfig();
+        const presetMap = new Map(
+            PRESET_LINKS.map(link => [link.key, {
+                ...link,
+                id: `custom-gh-btn-${link.key}`,
+                href: link.getHref(username)
+            }])
+        );
+        return config.orderKeys
+            .filter(key => config.enabledKeys.includes(key))
+            .map(key => presetMap.get(key))
+            .filter(Boolean);
+    }
+
+    function registerConfigMenu() {
+        if (typeof GM_registerMenuCommand !== 'function') return;
+        GM_registerMenuCommand('Better GitHub Nav: 配置快捷链接', () => {
+            const config = loadConfig();
+            const options = PRESET_LINKS.map(link => `${link.key}(${link.text})`).join(', ');
+            const enabledInput = prompt(
+                `输入要显示的链接 key（逗号分隔）\n可选: ${options}`,
+                config.enabledKeys.join(',')
+            );
+            if (enabledInput === null) return;
+            const enabledKeys = sanitizeKeys(parseCsvToKeys(enabledInput));
+            if (!enabledKeys.length) {
+                alert('至少保留 1 个快捷链接。');
+                return;
+            }
+
+            const orderInput = prompt(
+                `输入显示顺序 key（逗号分隔，只需写已启用项）\n当前启用: ${enabledKeys.join(',')}`,
+                config.orderKeys.filter(key => enabledKeys.includes(key)).join(',')
+            );
+            if (orderInput === null) return;
+            const orderKeys = sanitizeKeys(parseCsvToKeys(orderInput));
+
+            saveConfig({ enabledKeys, orderKeys });
+            alert('配置已保存，页面将刷新生效。');
+            location.reload();
+        });
+
+        GM_registerMenuCommand('Better GitHub Nav: 重置快捷链接配置', () => {
+            localStorage.removeItem(CONFIG_STORAGE_KEY);
+            alert('已重置为默认配置，页面将刷新生效。');
+            location.reload();
+        });
+    }
 
     function normalizePath(href) {
         try {
@@ -155,23 +262,14 @@
         // 获取当前登录的用户名，用来动态生成 Stars 页面的专属链接
         const userLoginMeta = document.querySelector('meta[name="user-login"]');
         const username = userLoginMeta ? userLoginMeta.getAttribute('content') : '';
-        const starsUrl = username ? `/${username}?tab=stars` : '/stars';
-
-        // 固定导航顺序：Dashboard / Explore / Trending / Collections / Stars
-        const dashboardLink = { id: 'custom-gh-btn-dashboard', text: 'Dashboard', href: '/dashboard', path: '/dashboard' };
-        const customLinks = [
-            { id: 'custom-gh-btn-explore', text: 'Explore', href: '/explore', path: '/explore' },
-            { id: 'custom-gh-btn-trending', text: 'Trending', href: '/trending', path: '/trending' },
-            { id: 'custom-gh-btn-collections', text: 'Collections', href: '/collections', path: '/collections' },
-            { id: 'custom-gh-btn-stars', text: 'Stars', href: starsUrl, path: '/stars' }
-        ];
-        const navPresetLinks = [dashboardLink, ...customLinks];
+        const navPresetLinks = getConfiguredLinks(username);
+        if (!navPresetLinks.length) return;
+        const primaryLink = navPresetLinks[0];
+        const extraLinks = navPresetLinks.slice(1);
         const fixedPages = new Set(['/dashboard', '/trending', '/explore', '/collections']);
         const compactPages = new Set(['/issues', '/pulls', '/repositories']);
 
-        const isOnPresetPage = navPresetLinks.some(
-            link => fixedPages.has(link.path) && isCurrentPage(link.path)
-        );
+        const isOnPresetPage = Array.from(fixedPages).some(path => isCurrentPage(path));
         const shouldUseCompactButtons = Array.from(compactPages).some(path => isCurrentPage(path));
 
         // 预设页面优先主导航；其他页面优先 breadcrumb/context crumb 的最后一项（如仓库名）
@@ -310,15 +408,15 @@
                 : null;
             const hasShortcutActive = navPresetLinks.some(link => isCurrentPage(link.path));
 
-            if (isOnPresetPage && anchorTag) {
-                // 五个预设页面：首个按钮固定为 Dashboard
-                anchorTag.id = dashboardLink.id;
-                anchorTag.href = dashboardLink.href;
-                setLinkText(anchorTag, dashboardLink.text);
-                setActiveStyle(anchorTag, isCurrentPage(dashboardLink.path), shouldUseCompactButtons);
+            if (isOnPresetPage && anchorTag && primaryLink) {
+                // 预设页面：首个按钮替换为当前配置顺序中的第一个
+                anchorTag.id = primaryLink.id;
+                anchorTag.href = primaryLink.href;
+                setLinkText(anchorTag, primaryLink.text);
+                setActiveStyle(anchorTag, isCurrentPage(primaryLink.path), shouldUseCompactButtons);
             } else {
                 // 其他页面：保留原生当前按钮，仅做高亮
-                if (anchorTag && anchorTag.id === dashboardLink.id) {
+                if (anchorTag && anchorTag.id && anchorTag.id.startsWith('custom-gh-btn-')) {
                     anchorTag.removeAttribute('id');
                 }
                 // 若快捷按钮已有命中（如 Stars 页），则避免双高亮
@@ -329,7 +427,7 @@
             
             // 设定插入的锚点，随着循环不断向后移动，保证按钮顺序正确
             let insertAfterNode = insertAnchorNode;
-            const linksToRender = isOnPresetPage ? customLinks : navPresetLinks;
+            const linksToRender = isOnPresetPage ? extraLinks : navPresetLinks;
 
             linksToRender.forEach(linkInfo => {
                 const existing = document.getElementById(linkInfo.id);
@@ -359,6 +457,7 @@
     // 1. 页面初次加载时执行
     console.info(`[Better GitHub Navigation] loaded v${SCRIPT_VERSION}`);
     window.__betterGithubNavVersion = SCRIPT_VERSION;
+    registerConfigMenu();
     ensureStyles();
     addCustomButtons();
 
@@ -368,7 +467,7 @@
 
     // 3. 终极备用方案：使用 MutationObserver 监听 DOM 变化
     const observer = new MutationObserver(() => {
-        if (!document.getElementById('custom-gh-btn-trending') && document.querySelector('header')) {
+        if (!document.querySelector('[id^="custom-gh-btn-"]') && document.querySelector('header')) {
             addCustomButtons();
         }
     });
