@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.24
+// @version      0.1.25
 // @description  Add quick access to Dashboard, Trending, Explore, Collections, and Stars from GitHub's top navigation.
 // @description:zh-CN 在 GitHub 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。
 // @author       Ayubass
@@ -16,10 +16,11 @@
 
 (function() {
     'use strict';
-    const SCRIPT_VERSION = '0.1.24';
+    const SCRIPT_VERSION = '0.1.25';
     const CUSTOM_BUTTON_CLASS = 'custom-gh-nav-btn';
     const CUSTOM_BUTTON_ACTIVE_CLASS = 'custom-gh-nav-btn-active';
     const CUSTOM_BUTTON_COMPACT_CLASS = 'custom-gh-nav-btn-compact';
+    const QUICK_LINK_MARK_ATTR = 'data-better-gh-nav-quick-link';
     const CONFIG_STORAGE_KEY = 'better-gh-nav-config-v1';
     const UI_LANG_STORAGE_KEY = 'better-gh-nav-ui-lang-v1';
     const SETTINGS_OVERLAY_ID = 'custom-gh-nav-settings-overlay';
@@ -664,6 +665,30 @@
         return aTag;
     }
 
+    function getAnchorHostNode(anchor) {
+        if (!anchor || !anchor.parentNode) return anchor;
+        return anchor.parentNode.tagName.toLowerCase() === 'li' ? anchor.parentNode : anchor;
+    }
+
+    function cleanupQuickLinksForContainer(renderParent, keepNode) {
+        const quickAnchors = Array.from(
+            document.querySelectorAll(
+                'header a[id^="custom-gh-btn-"], header a[' + QUICK_LINK_MARK_ATTR + '="1"]'
+            )
+        );
+
+        quickAnchors.forEach(anchor => {
+            const host = getAnchorHostNode(anchor);
+            if (!host || !host.parentNode) return;
+            if (host === keepNode) return;
+            if (host.parentNode !== renderParent) {
+                host.remove();
+                return;
+            }
+            host.remove();
+        });
+    }
+
     function addCustomButtons() {
         // 获取当前登录的用户名，用来动态生成 Stars 页面的专属链接
         const userLoginMeta = document.querySelector('meta[name="user-login"]');
@@ -673,6 +698,7 @@
         const primaryLink = navPresetLinks[0];
         const extraLinks = navPresetLinks.slice(1);
         const fixedPages = new Set(['/dashboard', '/trending', '/explore', '/collections']);
+        const shortcutPaths = new Set(PRESET_LINKS.map(link => link.path));
         const compactPages = new Set(['/issues', '/pulls', '/repositories']);
 
         const isOnPresetPage = Array.from(fixedPages).some(path => isCurrentPage(path));
@@ -680,18 +706,36 @@
 
         // 预设页面优先主导航；其他页面优先 breadcrumb/context crumb 的最后一项（如仓库名）
         let targetNode = null;
+        let targetSource = '';
         if (isOnPresetPage) {
             targetNode = document.querySelector(
-                'header a[href="/dashboard"], header a[href="/trending"], header a[href="/explore"]'
+                'header nav a[href="/dashboard"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                'header nav a[href="/trending"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                'header nav a[href="/explore"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"])'
             );
+            if (targetNode) targetSource = 'preset-nav';
+            if (!targetNode) {
+                targetNode = document.querySelector(
+                    'header nav a[id^="custom-gh-btn-"], header nav a[' + QUICK_LINK_MARK_ATTR + '="1"]'
+                );
+                if (targetNode) targetSource = 'preset-quick';
+            }
         } else {
-            const breadcrumbNodes = document.querySelectorAll(
+            const breadcrumbNodes = Array.from(document.querySelectorAll(
                 'header nav[aria-label*="breadcrumb" i] a[href^="/"], ' +
                 'header a[class*="contextCrumb"][href^="/"], ' +
                 'header a[class*="Breadcrumbs-Item"][href^="/"]'
-            );
+            )).filter(link => {
+                if (link.id && link.id.startsWith('custom-gh-btn-')) return false;
+                if (link.getAttribute(QUICK_LINK_MARK_ATTR) === '1') return false;
+                const href = normalizePath(link.getAttribute('href') || '');
+                if (!href || href === '/') return false;
+                if (shortcutPaths.has(href)) return false;
+                return true;
+            });
             if (breadcrumbNodes.length) {
                 targetNode = breadcrumbNodes[breadcrumbNodes.length - 1];
+                targetSource = 'breadcrumb';
             }
         }
 
@@ -703,16 +747,20 @@
                 'header nav [aria-current="page"]:not(a), ' +
                 'header nav [data-active="true"]:not(a)'
             );
+            if (targetNode) targetSource = 'current-nav';
         }
 
         // 兼容兜底：若未找到主导航，再尝试旧规则
         if (!targetNode) {
-            const navLinks = document.querySelectorAll('header a');
+            const navLinks = document.querySelectorAll(
+                'header a:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"])'
+            );
             for (let link of navLinks) {
                 const text = link.textContent.trim().toLowerCase();
                 const href = link.getAttribute('href');
                 if (text === 'dashboard' || href === '/dashboard') {
                     targetNode = link;
+                    targetSource = 'legacy-dashboard';
                     break;
                 }
             }
@@ -736,6 +784,7 @@
                 const href = normalizePath(link.getAttribute('href') || '');
                 if (!href || href === '/') return false;
                 if (link.id && link.id.startsWith('custom-gh-btn-')) return false;
+                if (link.getAttribute(QUICK_LINK_MARK_ATTR) === '1') return false;
                 return true;
             });
             if (globalNavCandidates.length) {
@@ -743,6 +792,7 @@
                     const href = normalizePath(link.getAttribute('href') || '');
                     return href === currentPath;
                 }) || globalNavCandidates[globalNavCandidates.length - 1];
+                if (targetNode) targetSource = 'global-nav';
             }
         }
 
@@ -754,6 +804,7 @@
             );
             if (currentTextNode) {
                 targetNode = currentTextNode;
+                targetSource = 'current-text';
             }
         }
 
@@ -766,6 +817,7 @@
             );
             if (contextCrumbTextNodes.length) {
                 targetNode = contextCrumbTextNodes[contextCrumbTextNodes.length - 1];
+                targetSource = 'crumb-text';
             }
         }
 
@@ -774,24 +826,26 @@
         if (targetNode) {
             const localNav = targetNode.closest('nav, ul, ol');
             const localAnchors = localNav
-                ? localNav.querySelectorAll('a[href^="/"]:not([id^="custom-gh-btn-"])')
+                ? localNav.querySelectorAll(
+                    'a[href^="/"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"])'
+                )
                 : [];
 
             if (localAnchors.length) {
                 templateNode = localAnchors[localAnchors.length - 1];
             } else {
                 const nativeNavAnchors = document.querySelectorAll(
-                    'header nav[aria-label*="breadcrumb" i] a[href^="/"]:not([id^="custom-gh-btn-"]), ' +
-                    'header a[class*="contextCrumb"][href^="/"]:not([id^="custom-gh-btn-"]), ' +
-                    'header a[class*="Breadcrumbs-Item"][href^="/"]:not([id^="custom-gh-btn-"]), ' +
-                    'header nav[aria-label*="global" i] a[href^="/"]:not([id^="custom-gh-btn-"]), ' +
-                    'header nav[aria-label*="header" i] a[href^="/"]:not([id^="custom-gh-btn-"]), ' +
-                    'header nav a[href="/pulls"]:not([id^="custom-gh-btn-"]), ' +
-                    'header nav a[href="/issues"]:not([id^="custom-gh-btn-"]), ' +
-                    'header nav a[href="/repositories"]:not([id^="custom-gh-btn-"]), ' +
-                    'header nav a[href="/codespaces"]:not([id^="custom-gh-btn-"]), ' +
-                    'header nav a[href="/marketplace"]:not([id^="custom-gh-btn-"]), ' +
-                    'header nav a[href="/explore"]:not([id^="custom-gh-btn-"])'
+                    'header nav[aria-label*="breadcrumb" i] a[href^="/"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header a[class*="contextCrumb"][href^="/"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header a[class*="Breadcrumbs-Item"][href^="/"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header nav[aria-label*="global" i] a[href^="/"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header nav[aria-label*="header" i] a[href^="/"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header nav a[href="/pulls"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header nav a[href="/issues"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header nav a[href="/repositories"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header nav a[href="/codespaces"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header nav a[href="/marketplace"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"]), ' +
+                    'header nav a[href="/explore"]:not([id^="custom-gh-btn-"]):not([' + QUICK_LINK_MARK_ATTR + '="1"])'
                 );
                 if (nativeNavAnchors.length) {
                     templateNode = nativeNavAnchors[nativeNavAnchors.length - 1];
@@ -812,11 +866,14 @@
             const anchorTag = (targetHasAnchor || shouldForceCreateAnchor)
                 ? ensureAnchor(insertAnchorNode, isTargetLiParent)
                 : null;
+            cleanupQuickLinksForContainer(insertAnchorNode.parentNode, insertAnchorNode);
+
             const hasShortcutActive = navPresetLinks.some(link => isCurrentPage(link.path));
 
             if (isOnPresetPage && anchorTag && primaryLink) {
                 // 预设页面：首个按钮替换为当前配置顺序中的第一个
                 anchorTag.id = primaryLink.id;
+                anchorTag.setAttribute(QUICK_LINK_MARK_ATTR, '1');
                 anchorTag.href = primaryLink.href;
                 setLinkText(anchorTag, primaryLink.text);
                 setActiveStyle(anchorTag, isCurrentPage(primaryLink.path), shouldUseCompactButtons);
@@ -824,6 +881,9 @@
                 // 其他页面：保留原生当前按钮，仅做高亮
                 if (anchorTag && anchorTag.id && anchorTag.id.startsWith('custom-gh-btn-')) {
                     anchorTag.removeAttribute('id');
+                }
+                if (anchorTag) {
+                    anchorTag.removeAttribute(QUICK_LINK_MARK_ATTR);
                 }
                 // 若快捷按钮已有命中（如 Stars 页），则避免双高亮
                 if (anchorTag) {
@@ -836,18 +896,11 @@
             const linksToRender = isOnPresetPage ? extraLinks : navPresetLinks;
 
             linksToRender.forEach(linkInfo => {
-                const existing = document.getElementById(linkInfo.id);
-                if (existing) {
-                    existing.href = linkInfo.href;
-                    setLinkText(existing, linkInfo.text);
-                    setActiveStyle(existing, isCurrentPage(linkInfo.path), shouldUseCompactButtons);
-                    return;
-                }
-
                 const newNode = cloneTemplateNode.cloneNode(true);
                 const aTag = ensureAnchor(newNode, isTemplateLiParent);
                 
                 aTag.id = linkInfo.id;
+                aTag.setAttribute(QUICK_LINK_MARK_ATTR, '1');
                 aTag.href = linkInfo.href;
                 setLinkText(aTag, linkInfo.text);
 
