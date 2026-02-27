@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.31
+// @version      0.1.33
 // @description  Add quick access to Dashboard, Trending, Explore, Collections, and Stars from GitHub's top navigation.
 // @description:zh-CN 在 GitHub 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。
 // @author       Ayubass
@@ -16,7 +16,7 @@
 
 (() => {
   // src/constants.js
-  var SCRIPT_VERSION = "0.1.31";
+  var SCRIPT_VERSION = "0.1.33";
   var CUSTOM_BUTTON_CLASS = "custom-gh-nav-btn";
   var CUSTOM_BUTTON_ACTIVE_CLASS = "custom-gh-nav-btn-active";
   var CUSTOM_BUTTON_COMPACT_CLASS = "custom-gh-nav-btn-compact";
@@ -167,36 +167,21 @@
             z-index: 2147483647;
             display: inline-flex;
             align-items: center;
-            gap: 7px;
+            gap: 8px;
             max-width: min(320px, calc(100vw - 16px));
-            background: var(--color-neutral-emphasis-plus, #1f2328);
-            color: var(--color-fg-on-emphasis, #ffffff);
+            background: #25292E;
+            color: #FFFFFF;
             border-radius: 6px;
-            box-shadow: 0 8px 24px rgba(16, 22, 26, 0.24), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
             padding: 4px 8px;
             font-size: 12px;
-            font-weight: 500;
-            line-height: 1.2;
+            font-weight: 400;
+            line-height: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
             pointer-events: none;
             box-sizing: border-box;
         }
         .custom-gh-nav-tooltip[hidden] {
             display: none !important;
-        }
-        .custom-gh-nav-tooltip::before {
-            content: '';
-            position: absolute;
-            width: 8px;
-            height: 8px;
-            background: inherit;
-            transform: rotate(45deg);
-            left: calc(50% - 4px);
-        }
-        .custom-gh-nav-tooltip[data-direction='s']::before {
-            top: -4px;
-        }
-        .custom-gh-nav-tooltip[data-direction='n']::before {
-            bottom: -4px;
         }
         .custom-gh-nav-tooltip-text {
             white-space: nowrap;
@@ -224,18 +209,18 @@
             align-items: center;
             justify-content: center;
             min-width: 16px;
-            height: 16px;
-            padding: 0 5px;
+            height: 14px;
+            padding: 2px 4px;
             border-radius: 4px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            background: rgba(255, 255, 255, 0.14);
-            color: var(--color-fg-on-emphasis, #ffffff);
+            border: 0;
+            background: #59636E;
+            color: #FFFFFF;
             font-size: 11px;
-            font-weight: 700;
-            line-height: 1;
+            font-weight: 400;
+            line-height: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
             text-transform: uppercase;
             box-sizing: border-box;
-            letter-spacing: 0.01em;
         }
         #${SETTINGS_OVERLAY_ID} {
             position: fixed;
