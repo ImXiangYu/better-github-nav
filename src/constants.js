@@ -19,6 +19,14 @@ export const PRESET_LINKS = [
     { key: 'stars', text: 'Stars', path: '/stars', getHref: username => (username ? `/${username}?tab=stars` : '/stars') }
 ];
 
+export const PRESET_LINK_SHORTCUTS = {
+    dashboard: 'g d',
+    explore: 'g e',
+    trending: 'g t',
+    collections: 'g c',
+    stars: 'g s'
+};
+
 export const I18N = {
     zh: {
         menuOpenSettings: 'Better GitHub Nav: 打开设置面板',

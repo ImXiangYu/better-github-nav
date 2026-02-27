@@ -35,6 +35,66 @@ export function ensureStyles() {
             background-color: var(--color-neutral-muted, rgba(177, 186, 196, 0.18));
             font-weight: 600;
         }
+        .custom-gh-nav-tooltip {
+            position: fixed;
+            z-index: 2147483647;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            max-width: min(320px, calc(100vw - 16px));
+            background: #25292E;
+            color: #FFFFFF;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: 400;
+            line-height: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+            pointer-events: none;
+            box-sizing: border-box;
+        }
+        .custom-gh-nav-tooltip[hidden] {
+            display: none !important;
+        }
+        .custom-gh-nav-tooltip-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .custom-gh-nav-tooltip-hint-container {
+            display: inline-flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .custom-gh-nav-tooltip-kbd {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin: 0;
+            padding: 0;
+            border: 0;
+            font: inherit;
+            color: inherit;
+            background: transparent;
+        }
+        .custom-gh-nav-tooltip-chord {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 16px;
+            height: 14px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            border: 0;
+            background: #59636E;
+            color: #FFFFFF;
+            font-size: 11px;
+            font-weight: 400;
+            line-height: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+            text-transform: uppercase;
+            box-sizing: border-box;
+        }
         #${SETTINGS_OVERLAY_ID} {
             position: fixed;
             inset: 0;

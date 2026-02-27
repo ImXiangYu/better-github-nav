@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.27
+// @version      0.1.33
 // @description  Add quick access to Dashboard, Trending, Explore, Collections, and Stars from GitHub's top navigation.
 // @description:zh-CN 在 GitHub 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。
 // @author       Ayubass
@@ -16,7 +16,7 @@
 
 (() => {
   // src/constants.js
-  var SCRIPT_VERSION = "0.1.27";
+  var SCRIPT_VERSION = "0.1.33";
   var CUSTOM_BUTTON_CLASS = "custom-gh-nav-btn";
   var CUSTOM_BUTTON_ACTIVE_CLASS = "custom-gh-nav-btn-active";
   var CUSTOM_BUTTON_COMPACT_CLASS = "custom-gh-nav-btn-compact";
@@ -34,6 +34,13 @@
     { key: "collections", text: "Collections", path: "/collections", getHref: () => "/collections" },
     { key: "stars", text: "Stars", path: "/stars", getHref: (username) => username ? `/${username}?tab=stars` : "/stars" }
   ];
+  var PRESET_LINK_SHORTCUTS = {
+    dashboard: "g d",
+    explore: "g e",
+    trending: "g t",
+    collections: "g c",
+    stars: "g s"
+  };
   var I18N = {
     zh: {
       menuOpenSettings: "Better GitHub Nav: 打开设置面板",
@@ -154,6 +161,66 @@
         a.${CUSTOM_BUTTON_CLASS}.${CUSTOM_BUTTON_ACTIVE_CLASS} {
             background-color: var(--color-neutral-muted, rgba(177, 186, 196, 0.18));
             font-weight: 600;
+        }
+        .custom-gh-nav-tooltip {
+            position: fixed;
+            z-index: 2147483647;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            max-width: min(320px, calc(100vw - 16px));
+            background: #25292E;
+            color: #FFFFFF;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: 400;
+            line-height: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+            pointer-events: none;
+            box-sizing: border-box;
+        }
+        .custom-gh-nav-tooltip[hidden] {
+            display: none !important;
+        }
+        .custom-gh-nav-tooltip-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .custom-gh-nav-tooltip-hint-container {
+            display: inline-flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .custom-gh-nav-tooltip-kbd {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin: 0;
+            padding: 0;
+            border: 0;
+            font: inherit;
+            color: inherit;
+            background: transparent;
+        }
+        .custom-gh-nav-tooltip-chord {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 16px;
+            height: 14px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            border: 0;
+            background: #59636E;
+            color: #FFFFFF;
+            font-size: 11px;
+            font-weight: 400;
+            line-height: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+            text-transform: uppercase;
+            box-sizing: border-box;
         }
         #${SETTINGS_OVERLAY_ID} {
             position: fixed;
@@ -300,6 +367,13 @@
   }
 
   // src/navigation.js
+  var lastHotkeyConflictSignature = "";
+  var hotkeyTooltipNode = null;
+  var hotkeyTooltipTextNode = null;
+  var hotkeyTooltipHintNode = null;
+  var hotkeyTooltipAnchor = null;
+  var hotkeyTooltipGlobalBound = false;
+  var hotkeyTooltipBoundAnchors = /* @__PURE__ */ new WeakSet();
   function normalizePath(href) {
     try {
       const url = new URL(href, location.origin);
@@ -317,6 +391,8 @@
     return location.search.includes("tab=stars") && linkPath === normalizePath("/stars");
   }
   function setLinkText(aTag, text) {
+    aTag.removeAttribute("aria-describedby");
+    aTag.setAttribute("aria-label", text);
     const innerSpan = aTag.querySelector("span");
     if (innerSpan) {
       innerSpan.textContent = text;
@@ -383,6 +459,201 @@
       }
       host.remove();
     });
+  }
+  function normalizeHotkeyValue(value) {
+    return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+  }
+  function createChordNode(chord) {
+    const chordNode = document.createElement("span");
+    chordNode.className = "custom-gh-nav-tooltip-chord";
+    chordNode.setAttribute("data-kbd-chord", "true");
+    chordNode.textContent = chord.toUpperCase();
+    return chordNode;
+  }
+  function ensureHotkeyTooltipNode() {
+    const existing = document.getElementById("custom-gh-nav-hotkey-tooltip");
+    if (existing) {
+      hotkeyTooltipNode = existing;
+      hotkeyTooltipTextNode = existing.querySelector(".custom-gh-nav-tooltip-text");
+      hotkeyTooltipHintNode = existing.querySelector(".custom-gh-nav-tooltip-kbd");
+      return existing;
+    }
+    const tooltip = document.createElement("span");
+    tooltip.id = "custom-gh-nav-hotkey-tooltip";
+    tooltip.className = "custom-gh-nav-tooltip";
+    tooltip.setAttribute("role", "tooltip");
+    tooltip.setAttribute("aria-hidden", "true");
+    tooltip.hidden = true;
+    const textNode = document.createElement("span");
+    textNode.className = "custom-gh-nav-tooltip-text";
+    tooltip.appendChild(textNode);
+    const hintContainer = document.createElement("span");
+    hintContainer.className = "custom-gh-nav-tooltip-hint-container";
+    hintContainer.setAttribute("aria-hidden", "true");
+    const kbdNode = document.createElement("kbd");
+    kbdNode.className = "custom-gh-nav-tooltip-kbd";
+    hintContainer.appendChild(kbdNode);
+    tooltip.appendChild(hintContainer);
+    document.body.appendChild(tooltip);
+    hotkeyTooltipNode = tooltip;
+    hotkeyTooltipTextNode = textNode;
+    hotkeyTooltipHintNode = kbdNode;
+    return tooltip;
+  }
+  function hideHotkeyTooltip() {
+    const tooltip = hotkeyTooltipNode || document.getElementById("custom-gh-nav-hotkey-tooltip");
+    if (!tooltip) return;
+    tooltip.hidden = true;
+    tooltip.setAttribute("aria-hidden", "true");
+    tooltip.removeAttribute("data-direction");
+    if (hotkeyTooltipAnchor) {
+      hotkeyTooltipAnchor.removeAttribute("aria-describedby");
+    }
+    hotkeyTooltipAnchor = null;
+  }
+  function positionHotkeyTooltip(tooltip, anchor) {
+    const spacing = 8;
+    const rect = anchor.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    let top = rect.bottom + spacing;
+    let direction = "s";
+    if (top + tooltipRect.height > window.innerHeight - spacing && rect.top - spacing - tooltipRect.height >= spacing) {
+      top = rect.top - spacing - tooltipRect.height;
+      direction = "n";
+    }
+    let left = rect.left + (rect.width - tooltipRect.width) / 2;
+    if (left + tooltipRect.width > window.innerWidth - spacing) {
+      left = window.innerWidth - tooltipRect.width - spacing;
+    }
+    if (left < spacing) {
+      left = spacing;
+    }
+    tooltip.style.top = `${Math.round(top)}px`;
+    tooltip.style.left = `${Math.round(left)}px`;
+    tooltip.setAttribute("data-direction", direction);
+  }
+  function showHotkeyTooltip(anchor) {
+    const hotkey = normalizeHotkeyValue(anchor.getAttribute("data-hotkey"));
+    if (!hotkey) return;
+    const tooltip = ensureHotkeyTooltipNode();
+    const label = String(anchor.getAttribute("aria-label") || anchor.textContent || "").replace(/\s+/g, " ").trim();
+    if (hotkeyTooltipTextNode) {
+      hotkeyTooltipTextNode.textContent = label;
+    }
+    if (hotkeyTooltipHintNode) {
+      hotkeyTooltipHintNode.textContent = "";
+      const chords = hotkey.split(" ").filter(Boolean);
+      chords.forEach((chord) => {
+        hotkeyTooltipHintNode.appendChild(createChordNode(chord));
+      });
+    }
+    tooltip.hidden = false;
+    tooltip.setAttribute("aria-hidden", "false");
+    positionHotkeyTooltip(tooltip, anchor);
+    if (hotkeyTooltipAnchor && hotkeyTooltipAnchor !== anchor) {
+      hotkeyTooltipAnchor.removeAttribute("aria-describedby");
+    }
+    hotkeyTooltipAnchor = anchor;
+    anchor.setAttribute("aria-describedby", tooltip.id);
+  }
+  function bindHotkeyTooltipHandlers(anchor) {
+    if (hotkeyTooltipBoundAnchors.has(anchor)) return;
+    hotkeyTooltipBoundAnchors.add(anchor);
+    anchor.addEventListener("mouseenter", () => showHotkeyTooltip(anchor));
+    anchor.addEventListener("mouseleave", hideHotkeyTooltip);
+    anchor.addEventListener("focus", () => showHotkeyTooltip(anchor));
+    anchor.addEventListener("blur", hideHotkeyTooltip);
+    anchor.addEventListener("mousedown", hideHotkeyTooltip);
+  }
+  function bindHotkeyTooltipGlobalHandlers() {
+    if (hotkeyTooltipGlobalBound) return;
+    hotkeyTooltipGlobalBound = true;
+    window.addEventListener("resize", hideHotkeyTooltip, { passive: true });
+    document.addEventListener("scroll", hideHotkeyTooltip, true);
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") hideHotkeyTooltip();
+    }, true);
+    document.addEventListener("pointerdown", (event) => {
+      const tooltip = hotkeyTooltipNode || document.getElementById("custom-gh-nav-hotkey-tooltip");
+      if (!tooltip || tooltip.hidden) return;
+      const target = event.target;
+      if (target && hotkeyTooltipAnchor && hotkeyTooltipAnchor.contains(target)) return;
+      if (target && tooltip.contains(target)) return;
+      hideHotkeyTooltip();
+    }, true);
+  }
+  function applyLinkShortcut(aTag, linkInfo) {
+    aTag.removeAttribute("data-hotkey");
+    aTag.removeAttribute("aria-keyshortcuts");
+    aTag.removeAttribute("title");
+    aTag.removeAttribute("aria-describedby");
+    const hotkey = normalizeHotkeyValue(PRESET_LINK_SHORTCUTS[linkInfo.key]);
+    if (!hotkey) return "";
+    aTag.setAttribute("data-hotkey", hotkey);
+    aTag.setAttribute("aria-keyshortcuts", hotkey);
+    bindHotkeyTooltipGlobalHandlers();
+    bindHotkeyTooltipHandlers(aTag);
+    return hotkey;
+  }
+  function describeHotkeyTarget(node) {
+    if (!node) return "";
+    const label = String(node.getAttribute("aria-label") || node.textContent || "").replace(/\s+/g, " ").trim();
+    if (label) return label;
+    const href = node.getAttribute("href");
+    if (href) return href;
+    return node.tagName.toLowerCase();
+  }
+  function reportHotkeyConflicts(customAnchors) {
+    const customSet = new Set(customAnchors.filter(Boolean));
+    const customByHotkey = /* @__PURE__ */ new Map();
+    customAnchors.forEach((anchor) => {
+      const hotkey = normalizeHotkeyValue(anchor.getAttribute("data-hotkey"));
+      if (!hotkey) return;
+      const labels = customByHotkey.get(hotkey) || [];
+      labels.push(describeHotkeyTarget(anchor));
+      customByHotkey.set(hotkey, labels);
+    });
+    const conflictLines = [];
+    customByHotkey.forEach((labels, hotkey) => {
+      const uniqueLabels = Array.from(new Set(labels.filter(Boolean)));
+      if (uniqueLabels.length > 1) {
+        conflictLines.push(`${hotkey} -> ${uniqueLabels.join(" / ")}`);
+      }
+    });
+    const nativeByHotkey = /* @__PURE__ */ new Map();
+    const nativeHotkeyNodes = Array.from(
+      document.querySelectorAll("a[data-hotkey], button[data-hotkey], summary[data-hotkey]")
+    );
+    nativeHotkeyNodes.forEach((node) => {
+      if (customSet.has(node)) return;
+      if (node.closest('[hidden], [aria-hidden="true"]')) return;
+      const style = window.getComputedStyle(node);
+      if (style.display === "none" || style.visibility === "hidden") return;
+      const hotkey = normalizeHotkeyValue(node.getAttribute("data-hotkey"));
+      if (!hotkey) return;
+      if (!customByHotkey.has(hotkey)) return;
+      const labels = nativeByHotkey.get(hotkey) || [];
+      labels.push(describeHotkeyTarget(node));
+      nativeByHotkey.set(hotkey, labels);
+    });
+    customByHotkey.forEach((labels, hotkey) => {
+      const nativeLabels = nativeByHotkey.get(hotkey);
+      if (!nativeLabels || !nativeLabels.length) return;
+      const customLabel = Array.from(new Set(labels.filter(Boolean))).join(" / ");
+      const nativeLabel = Array.from(new Set(nativeLabels.filter(Boolean))).slice(0, 2).join(" / ");
+      conflictLines.push(`${hotkey} -> ${customLabel} <-> ${nativeLabel}`);
+    });
+    const uniqueConflictLines = Array.from(new Set(conflictLines));
+    if (!uniqueConflictLines.length) {
+      lastHotkeyConflictSignature = "";
+      return;
+    }
+    const signature = uniqueConflictLines.join("|");
+    if (signature === lastHotkeyConflictSignature) return;
+    lastHotkeyConflictSignature = signature;
+    console.warn(
+      `[Better GitHub Navigation] 检测到快捷键冲突：${uniqueConflictLines.join("; ")}`
+    );
   }
   function addCustomButtons() {
     const userLoginMeta = document.querySelector('meta[name="user-login"]');
@@ -511,18 +782,26 @@
       const anchorTag = targetHasAnchor || shouldForceCreateAnchor ? ensureAnchor(insertAnchorNode, isTargetLiParent) : null;
       cleanupQuickLinksForContainer(insertAnchorNode.parentNode, insertAnchorNode);
       const hasShortcutActive = navPresetLinks.some((link) => isCurrentPage(link.path));
+      const renderedQuickAnchors = [];
       if (isOnPresetPage && anchorTag && primaryLink) {
         anchorTag.id = primaryLink.id;
         anchorTag.setAttribute(QUICK_LINK_MARK_ATTR, "1");
         anchorTag.href = primaryLink.href;
         setLinkText(anchorTag, primaryLink.text);
+        applyLinkShortcut(anchorTag, primaryLink);
+        renderedQuickAnchors.push(anchorTag);
         setActiveStyle(anchorTag, isCurrentPage(primaryLink.path), shouldUseCompactButtons);
       } else {
+        const wasQuickAnchor = Boolean(anchorTag) && (anchorTag.id && anchorTag.id.startsWith("custom-gh-btn-") || anchorTag.getAttribute(QUICK_LINK_MARK_ATTR) === "1");
         if (anchorTag && anchorTag.id && anchorTag.id.startsWith("custom-gh-btn-")) {
           anchorTag.removeAttribute("id");
         }
         if (anchorTag) {
           anchorTag.removeAttribute(QUICK_LINK_MARK_ATTR);
+        }
+        if (anchorTag && wasQuickAnchor) {
+          anchorTag.removeAttribute("data-hotkey");
+          anchorTag.removeAttribute("aria-keyshortcuts");
         }
         if (anchorTag) {
           setActiveStyle(anchorTag, !hasShortcutActive, shouldUseCompactButtons);
@@ -537,10 +816,13 @@
         aTag.setAttribute(QUICK_LINK_MARK_ATTR, "1");
         aTag.href = linkInfo.href;
         setLinkText(aTag, linkInfo.text);
+        applyLinkShortcut(aTag, linkInfo);
+        renderedQuickAnchors.push(aTag);
         setActiveStyle(aTag, isCurrentPage(linkInfo.path), shouldUseCompactButtons);
         insertAfterNode.parentNode.insertBefore(newNode, insertAfterNode.nextSibling);
         insertAfterNode = newNode;
       });
+      reportHotkeyConflicts(renderedQuickAnchors);
     }
   }
 
