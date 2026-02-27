@@ -35,6 +35,81 @@ export function ensureStyles() {
             background-color: var(--color-neutral-muted, rgba(177, 186, 196, 0.18));
             font-weight: 600;
         }
+        .custom-gh-nav-tooltip {
+            position: fixed;
+            z-index: 2147483647;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            max-width: min(320px, calc(100vw - 16px));
+            background: var(--color-neutral-emphasis-plus, #1f2328);
+            color: var(--color-fg-on-emphasis, #ffffff);
+            border-radius: 6px;
+            box-shadow: 0 8px 24px rgba(16, 22, 26, 0.24), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.2;
+            pointer-events: none;
+            box-sizing: border-box;
+        }
+        .custom-gh-nav-tooltip[hidden] {
+            display: none !important;
+        }
+        .custom-gh-nav-tooltip::before {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: inherit;
+            transform: rotate(45deg);
+            left: calc(50% - 4px);
+        }
+        .custom-gh-nav-tooltip[data-direction='s']::before {
+            top: -4px;
+        }
+        .custom-gh-nav-tooltip[data-direction='n']::before {
+            bottom: -4px;
+        }
+        .custom-gh-nav-tooltip-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .custom-gh-nav-tooltip-hint-container {
+            display: inline-flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .custom-gh-nav-tooltip-kbd {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin: 0;
+            padding: 0;
+            border: 0;
+            font: inherit;
+            color: inherit;
+            background: transparent;
+        }
+        .custom-gh-nav-tooltip-chord {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 16px;
+            height: 16px;
+            padding: 0 5px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.14);
+            color: var(--color-fg-on-emphasis, #ffffff);
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1;
+            text-transform: uppercase;
+            box-sizing: border-box;
+            letter-spacing: 0.01em;
+        }
         #${SETTINGS_OVERLAY_ID} {
             position: fixed;
             inset: 0;
