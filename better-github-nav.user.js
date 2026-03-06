@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.36
+// @version      0.1.37
 // @description  Add quick access to Dashboard, Trending, Explore, Collections, and Stars from GitHub's top navigation.
 // @description:zh-CN 在 GitHub 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。
 // @author       Ayubass
@@ -16,7 +16,7 @@
 
 (() => {
   // src/constants.js
-  var SCRIPT_VERSION = "0.1.36";
+  var SCRIPT_VERSION = "0.1.37";
   var CUSTOM_BUTTON_CLASS = "custom-gh-nav-btn";
   var CUSTOM_BUTTON_ACTIVE_CLASS = "custom-gh-nav-btn-active";
   var CUSTOM_BUTTON_COMPACT_CLASS = "custom-gh-nav-btn-compact";
@@ -181,6 +181,7 @@
             box-sizing: border-box;
             box-shadow: var(--color-shadow-medium, 0 8px 24px rgba(0,0,0,0.2));
             border: 1px solid var(--color-border-default, transparent);
+            text-decoration: none;
         }
         .custom-gh-nav-tooltip[hidden] {
             display: none !important;
@@ -189,12 +190,14 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            text-decoration: none;
         }
         .custom-gh-nav-tooltip-hint-container {
             display: inline-flex;
             align-items: center;
             flex-shrink: 0;
             margin-left: 4px;
+            text-decoration: none;
         }
         .custom-gh-nav-tooltip-kbd {
             display: inline-flex;
@@ -206,25 +209,27 @@
             font: inherit;
             color: inherit;
             background: transparent;
+            text-decoration: none;
         }
         .custom-gh-nav-tooltip-chord {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 20px;
-            height: 20px;
-            padding: 0 6px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 4px;
             border-radius: 4px;
             background: #6e7681;
             color: #ffffff;
             font-size: 11px;
-            font-weight: 600;
+            font-weight: 400;
             line-height: 1;
             font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
             text-transform: uppercase;
             box-sizing: border-box;
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+            text-decoration: none;
         }
         #${SETTINGS_OVERLAY_ID} {
             position: fixed;

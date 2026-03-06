@@ -54,6 +54,7 @@ export function ensureStyles() {
             box-sizing: border-box;
             box-shadow: var(--color-shadow-medium, 0 8px 24px rgba(0,0,0,0.2));
             border: 1px solid var(--color-border-default, transparent);
+            text-decoration: none;
         }
         .custom-gh-nav-tooltip[hidden] {
             display: none !important;
@@ -62,12 +63,14 @@ export function ensureStyles() {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            text-decoration: none;
         }
         .custom-gh-nav-tooltip-hint-container {
             display: inline-flex;
             align-items: center;
             flex-shrink: 0;
             margin-left: 4px;
+            text-decoration: none;
         }
         .custom-gh-nav-tooltip-kbd {
             display: inline-flex;
@@ -79,25 +82,27 @@ export function ensureStyles() {
             font: inherit;
             color: inherit;
             background: transparent;
+            text-decoration: none;
         }
         .custom-gh-nav-tooltip-chord {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 20px;
-            height: 20px;
-            padding: 0 6px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 4px;
             border-radius: 4px;
             background: #6e7681;
             color: #ffffff;
             font-size: 11px;
-            font-weight: 600;
+            font-weight: 400;
             line-height: 1;
             font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
             text-transform: uppercase;
             box-sizing: border-box;
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+            text-decoration: none;
         }
         #${SETTINGS_OVERLAY_ID} {
             position: fixed;
