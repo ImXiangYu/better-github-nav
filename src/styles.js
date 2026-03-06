@@ -78,31 +78,29 @@ export function ensureStyles() {
             gap: 4px;
             margin: 0;
             padding: 0;
-            border: 0;
+            border: none !important;
+            box-shadow: none !important;
             font: inherit;
             color: inherit;
-            background: transparent;
-            text-decoration: none;
+            background: transparent !important;
+            text-decoration: none !important;
         }
         .custom-gh-nav-tooltip-chord {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 18px;
-            height: 18px;
+            display: inline-block;
+            vertical-align: middle;
             padding: 0 4px;
             border-radius: 4px;
-            background: #6e7681;
+            background: rgba(110, 118, 129, 0.4);
             color: #ffffff;
             font-size: 11px;
             font-weight: 400;
-            line-height: 1;
+            line-height: 18px;
             font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
             text-transform: uppercase;
             box-sizing: border-box;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-            text-decoration: none;
+            border: none !important;
+            box-shadow: none !important;
+            text-decoration: none !important;
         }
         #${SETTINGS_OVERLAY_ID} {
             position: fixed;
