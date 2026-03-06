@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.33
+// @version      0.1.34
 // @description  Add quick access to Dashboard, Trending, Explore, Collections, and Stars from GitHub's top navigation.
 // @description:zh-CN 在 GitHub 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。
 // @author       Ayubass
@@ -16,7 +16,7 @@
 
 (() => {
   // src/constants.js
-  var SCRIPT_VERSION = "0.1.33";
+  var SCRIPT_VERSION = "0.1.34";
   var CUSTOM_BUTTON_CLASS = "custom-gh-nav-btn";
   var CUSTOM_BUTTON_ACTIVE_CLASS = "custom-gh-nav-btn-active";
   var CUSTOM_BUTTON_COMPACT_CLASS = "custom-gh-nav-btn-compact";
@@ -393,6 +393,8 @@
   function setLinkText(aTag, text) {
     aTag.removeAttribute("aria-describedby");
     aTag.setAttribute("aria-label", text);
+    const icons = aTag.querySelectorAll("svg");
+    icons.forEach((icon) => icon.remove());
     const innerSpan = aTag.querySelector("span");
     if (innerSpan) {
       innerSpan.textContent = text;

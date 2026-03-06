@@ -34,6 +34,10 @@ export function setLinkText(aTag, text) {
     aTag.removeAttribute('aria-describedby');
     aTag.setAttribute('aria-label', text);
 
+    // 移除所有已存在的图标（SVG），防止从模板克隆出错误的图标
+    const icons = aTag.querySelectorAll('svg');
+    icons.forEach(icon => icon.remove());
+
     const innerSpan = aTag.querySelector('span');
     if (innerSpan) {
         innerSpan.textContent = text;
