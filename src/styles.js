@@ -42,8 +42,8 @@ export function ensureStyles() {
             align-items: center;
             gap: 8px;
             max-width: min(320px, calc(100vw - 16px));
-            background: #25292E;
-            color: #FFFFFF;
+            background: var(--color-neutral-emphasis-plus, #1f2328);
+            color: var(--color-fg-on-emphasis, #ffffff);
             border-radius: 6px;
             padding: 4px 8px;
             font-size: 12px;
@@ -52,6 +52,9 @@ export function ensureStyles() {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
             pointer-events: none;
             box-sizing: border-box;
+            box-shadow: var(--color-shadow-medium, 0 8px 24px rgba(0,0,0,0.2));
+            border: 1px solid var(--color-border-default, transparent);
+            text-decoration: none;
         }
         .custom-gh-nav-tooltip[hidden] {
             display: none !important;
@@ -60,11 +63,14 @@ export function ensureStyles() {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            text-decoration: none;
         }
         .custom-gh-nav-tooltip-hint-container {
             display: inline-flex;
             align-items: center;
             flex-shrink: 0;
+            margin-left: 4px;
+            text-decoration: none;
         }
         .custom-gh-nav-tooltip-kbd {
             display: inline-flex;
@@ -72,28 +78,29 @@ export function ensureStyles() {
             gap: 4px;
             margin: 0;
             padding: 0;
-            border: 0;
+            border: none !important;
+            box-shadow: none !important;
             font: inherit;
             color: inherit;
-            background: transparent;
+            background: transparent !important;
+            text-decoration: none !important;
         }
         .custom-gh-nav-tooltip-chord {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 16px;
-            height: 14px;
-            padding: 2px 4px;
+            display: inline-block;
+            vertical-align: middle;
+            padding: 0 4px;
             border-radius: 4px;
-            border: 0;
-            background: #59636E;
-            color: #FFFFFF;
+            background: rgba(110, 118, 129, 0.4);
+            color: #ffffff;
             font-size: 11px;
             font-weight: 400;
-            line-height: 10px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+            line-height: 18px;
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
             text-transform: uppercase;
             box-sizing: border-box;
+            border: none !important;
+            box-shadow: none !important;
+            text-decoration: none !important;
         }
         #${SETTINGS_OVERLAY_ID} {
             position: fixed;
