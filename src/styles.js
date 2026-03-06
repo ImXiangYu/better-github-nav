@@ -84,19 +84,20 @@ export function ensureStyles() {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 18px;
-            height: 18px;
-            padding: 0 4px;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
             border-radius: 4px;
-            background: rgba(110, 118, 129, 0.4);
-            color: var(--color-fg-on-emphasis, #ffffff);
+            background: #6e7681;
+            color: #ffffff;
             font-size: 11px;
-            font-weight: 500;
+            font-weight: 600;
             line-height: 1;
             font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
             text-transform: uppercase;
             box-sizing: border-box;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.2);
         }
         #${SETTINGS_OVERLAY_ID} {
             position: fixed;

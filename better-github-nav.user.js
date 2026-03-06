@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.35
+// @version      0.1.36
 // @description  Add quick access to Dashboard, Trending, Explore, Collections, and Stars from GitHub's top navigation.
 // @description:zh-CN 在 GitHub 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。
 // @author       Ayubass
@@ -16,7 +16,7 @@
 
 (() => {
   // src/constants.js
-  var SCRIPT_VERSION = "0.1.35";
+  var SCRIPT_VERSION = "0.1.36";
   var CUSTOM_BUTTON_CLASS = "custom-gh-nav-btn";
   var CUSTOM_BUTTON_ACTIVE_CLASS = "custom-gh-nav-btn-active";
   var CUSTOM_BUTTON_COMPACT_CLASS = "custom-gh-nav-btn-compact";
@@ -211,19 +211,20 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 18px;
-            height: 18px;
-            padding: 0 4px;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
             border-radius: 4px;
-            background: rgba(110, 118, 129, 0.4);
-            color: var(--color-fg-on-emphasis, #ffffff);
+            background: #6e7681;
+            color: #ffffff;
             font-size: 11px;
-            font-weight: 500;
+            font-weight: 600;
             line-height: 1;
             font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
             text-transform: uppercase;
             box-sizing: border-box;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.2);
         }
         #${SETTINGS_OVERLAY_ID} {
             position: fixed;
