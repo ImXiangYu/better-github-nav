@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.34
+// @version      0.1.35
 // @description  Add quick access to Dashboard, Trending, Explore, Collections, and Stars from GitHub's top navigation.
 // @description:zh-CN 在 GitHub 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。
 // @author       Ayubass
@@ -16,7 +16,7 @@
 
 (() => {
   // src/constants.js
-  var SCRIPT_VERSION = "0.1.34";
+  var SCRIPT_VERSION = "0.1.35";
   var CUSTOM_BUTTON_CLASS = "custom-gh-nav-btn";
   var CUSTOM_BUTTON_ACTIVE_CLASS = "custom-gh-nav-btn-active";
   var CUSTOM_BUTTON_COMPACT_CLASS = "custom-gh-nav-btn-compact";
@@ -169,8 +169,8 @@
             align-items: center;
             gap: 8px;
             max-width: min(320px, calc(100vw - 16px));
-            background: #25292E;
-            color: #FFFFFF;
+            background: var(--color-neutral-emphasis-plus, #1f2328);
+            color: var(--color-fg-on-emphasis, #ffffff);
             border-radius: 6px;
             padding: 4px 8px;
             font-size: 12px;
@@ -179,6 +179,8 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
             pointer-events: none;
             box-sizing: border-box;
+            box-shadow: var(--color-shadow-medium, 0 8px 24px rgba(0,0,0,0.2));
+            border: 1px solid var(--color-border-default, transparent);
         }
         .custom-gh-nav-tooltip[hidden] {
             display: none !important;
@@ -192,6 +194,7 @@
             display: inline-flex;
             align-items: center;
             flex-shrink: 0;
+            margin-left: 4px;
         }
         .custom-gh-nav-tooltip-kbd {
             display: inline-flex;
@@ -208,19 +211,19 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 16px;
-            height: 14px;
-            padding: 2px 4px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 4px;
             border-radius: 4px;
-            border: 0;
-            background: #59636E;
-            color: #FFFFFF;
+            background: rgba(110, 118, 129, 0.4);
+            color: var(--color-fg-on-emphasis, #ffffff);
             font-size: 11px;
-            font-weight: 400;
-            line-height: 10px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+            font-weight: 500;
+            line-height: 1;
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
             text-transform: uppercase;
             box-sizing: border-box;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         #${SETTINGS_OVERLAY_ID} {
             position: fixed;
