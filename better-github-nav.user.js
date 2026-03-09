@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.44
+// @version      0.1.45
 // @description  Bring Dashboard, Trending, Explore, Collections, and Stars closer on desktop and narrow screens, and keep your most-used repositories pinned where they are easiest to reach.
 // @description:zh-CN 在桌面端和窄屏场景下，把 Dashboard、Trending、Explore、Collections、Stars 放到更顺手的位置，并把你最常用的仓库固定在最容易到达的地方。
 // @author       Ayubass
@@ -16,7 +16,7 @@
 
 (() => {
   // src/constants.js
-  var SCRIPT_VERSION = "0.1.44";
+  var SCRIPT_VERSION = "0.1.45";
   var CUSTOM_BUTTON_CLASS = "custom-gh-nav-btn";
   var CUSTOM_BUTTON_ACTIVE_CLASS = "custom-gh-nav-btn-active";
   var CUSTOM_BUTTON_COMPACT_CLASS = "custom-gh-nav-btn-compact";
@@ -242,8 +242,8 @@
             transform: rotate(180deg);
         }
         .custom-gh-nav-overflow-menu {
-            position: absolute;
-            top: calc(100% + 8px);
+            position: fixed;
+            top: 0;
             left: 0;
             z-index: 2147483646;
             display: flex;
@@ -545,13 +545,6 @@
             margin: 6px 0;
             background: var(--color-border-muted, rgba(208, 215, 222, 0.8));
         }
-        @media (max-width: 767px) {
-            .custom-gh-nav-overflow-menu {
-                left: auto;
-                right: 0;
-                min-width: min(240px, calc(100vw - 16px));
-            }
-        }
     `;
     document.head.appendChild(style);
   }
@@ -723,18 +716,29 @@
     state.toggleButton.setAttribute("aria-expanded", state.menuOpen ? "true" : "false");
   }
   function positionResponsiveQuickLinksMenu(state) {
-    state.menuNode.style.left = "0";
-    state.menuNode.style.right = "auto";
-    const rect = state.menuNode.getBoundingClientRect();
     const viewportPadding = 8;
-    if (rect.right > window.innerWidth - viewportPadding) {
-      state.menuNode.style.left = "auto";
-      state.menuNode.style.right = "0";
+    const anchorRect = state.toggleButton.getBoundingClientRect();
+    state.menuNode.style.left = `${viewportPadding}px`;
+    state.menuNode.style.top = `${Math.round(anchorRect.bottom + viewportPadding)}px`;
+    const menuRect = state.menuNode.getBoundingClientRect();
+    const maxLeft = Math.max(viewportPadding, window.innerWidth - menuRect.width - viewportPadding);
+    const preferredLeft = anchorRect.right - menuRect.width;
+    const fallbackLeft = anchorRect.left;
+    const unclampedLeft = preferredLeft >= viewportPadding ? preferredLeft : fallbackLeft;
+    const left = Math.min(maxLeft, Math.max(viewportPadding, unclampedLeft));
+    let top = anchorRect.bottom + viewportPadding;
+    const fitsBelow = top + menuRect.height <= window.innerHeight - viewportPadding;
+    const fitsAbove = anchorRect.top - viewportPadding - menuRect.height >= viewportPadding;
+    if (!fitsBelow && fitsAbove) {
+      top = anchorRect.top - viewportPadding - menuRect.height;
+    } else if (!fitsBelow) {
+      top = Math.max(
+        viewportPadding,
+        window.innerHeight - menuRect.height - viewportPadding
+      );
     }
-    if (state.menuNode.getBoundingClientRect().left < viewportPadding) {
-      state.menuNode.style.left = "0";
-      state.menuNode.style.right = "auto";
-    }
+    state.menuNode.style.left = `${Math.round(left)}px`;
+    state.menuNode.style.top = `${Math.round(top)}px`;
   }
   function closeResponsiveQuickLinksMenu() {
     const state = responsiveQuickLinksState;
@@ -742,6 +746,7 @@
     hideHotkeyTooltip();
     state.menuOpen = false;
     state.menuNode.hidden = true;
+    state.menuNode.style.visibility = "";
     updateResponsiveQuickLinksToggle(state);
   }
   function toggleResponsiveQuickLinksMenu() {
@@ -751,7 +756,9 @@
     state.menuOpen = !state.menuOpen;
     state.menuNode.hidden = !state.menuOpen;
     if (state.menuOpen) {
+      state.menuNode.style.visibility = "hidden";
       positionResponsiveQuickLinksMenu(state);
+      state.menuNode.style.visibility = "";
     }
     updateResponsiveQuickLinksToggle(state);
   }
@@ -850,6 +857,9 @@
       if (!state || !state.menuOpen) return;
       const target = event.target;
       if (target && state.toggleHostNode.contains(target)) return;
+      closeResponsiveQuickLinksMenu();
+    }, true);
+    document.addEventListener("scroll", () => {
       closeResponsiveQuickLinksMenu();
     }, true);
   }
