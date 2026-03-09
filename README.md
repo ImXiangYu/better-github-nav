@@ -2,54 +2,62 @@
 
 ## 中文说明
 
-**Better GitHub Navigation** 是一款专为 GitHub 用户设计的 Tampermonkey（油猴）脚本。它旨在通过优化顶部导航栏，为你提供更高效、更直观的 GitHub 浏览体验。
+**Better GitHub Navigation** 是一款给 GitHub 补效率的 Tampermonkey（油猴）脚本。
+
+如果你经常在 GitHub 里来回切 `Dashboard`、`Explore`、`Trending`、`Stars`，或者总要去首页左侧翻那几个最常开的仓库，这个脚本就是拿来解决这些问题的。它会把常用入口放到更顺手的位置，让你少找一步、少点一下、少绕一圈。
 
 ### 🚀 核心功能
-- **快捷入口补全**：在顶部导航栏直接集成 `Dashboard`、`Trending`、`Explore`、`Collections` 和 `Stars` 等常用功能按钮。
-- **自由定制显示**：在设置面板中通过勾选框决定哪些按钮出现在导航栏，随时隐藏不需要的项。
-- **直观拖拽排序**：支持通过鼠标拖拽直接调整导航按钮的先后顺序，打造你的专属布局。
-- **智能高亮**：自动识别当前页面并精准高亮对应的导航按钮。
-- **布局优化**：在仓库详情页采用更符合逻辑的 `用户名 / 仓库名 / 功能项...` 排序。
-- **无缝衔接**：完美兼容 GitHub 的 Turbo/PJAX 机制，切页时按钮瞬间加载，无需刷新。
-- **双语支持**：界面支持中英文，可根据浏览器语言自动切换或手动指定。
+- **常用页面一键直达**：把 `Dashboard`、`Explore`、`Trending`、`Collections`、`Stars` 这些高频入口补到顶部导航，少绕路。
+- **快捷入口按你习惯来**：想显示哪些、放什么顺序，都可以自己调整，导航栏终于能配合你的工作流。
+- **常用仓库固定在手边**：GitHub 首页左侧 `Top repositories` 支持一键置顶，把你真正常开的仓库留在最前面。
+- **展开后也继续可用**：点开 `Show more` 之后，新显示出来的仓库也一样可以直接置顶。
+- **熟悉的 GitHub 感还在**：脚本只帮你把常用内容提到更近的位置，不会把整套使用习惯打乱。
+- **跨页浏览依然顺滑**：在 GitHub 里切页面时，增强入口会持续生效。
+- **双语界面更省心**：支持中文和英文，自动跟随页面语言，也能手动切换。
 
 ### 🛠️ 如何使用
 1. 安装脚本后，在 GitHub 页面点击油猴扩展图标。
 2. 在脚本菜单中选择 **"Better GitHub Nav: 打开设置面板"**。
-3. 在弹出的面板中勾选你需要的按钮，并拖动行来调整顺序。
-4. 点击“保存并刷新”即可生效。
+3. 勾选你想保留的快捷入口，并拖动顺序，整理出最适合自己的导航栏。
+4. 回到 GitHub 首页，点击 `Top repositories` 每个仓库后方的置顶按钮，把最常用的仓库固定到前面。
+5. 需要查看更多仓库时，展开 `Show more`，新增显示的仓库也能继续置顶。
+6. 之后常用页面和常用仓库都会更靠近你，日常切换会明显更顺。
 
 ### 📦 安装地址
 请前往 GreasyFork 安装最新版本：
 👉 [**GreasyFork: Better GitHub Navigation**](https://greasyfork.org/scripts/567335-better-github-navigation)
 
 ### 🔍 关键词
-GitHub 优化, 导航栏增强, 快捷按钮, 油猴脚本, 自定义布局, GitHub UI Enhancement, Navigation Shortcuts, Tampermonkey Script, Efficiency.
+GitHub 首页增强, GitHub 导航增强, Top repositories 置顶, 常用仓库固定, Dashboard 快捷入口, Stars 快速访问, Tampermonkey 油猴脚本, GitHub 效率工具.
 
 ---
 
 ## English Description
 
-**Better GitHub Navigation** is a userscript tailored for GitHub power users. It enhances the top navigation bar to provide a faster and more streamlined browsing experience.
+**Better GitHub Navigation** is a Tampermonkey userscript built to make everyday GitHub navigation faster.
+
+If you keep jumping between `Dashboard`, `Explore`, `Trending`, `Stars`, and a handful of repositories you open all the time, this script brings those places closer. It adds better shortcuts where you already look and keeps your favorite repos easy to reach from the home page.
 
 ### 🚀 Key Features
-- **Navigation Shortcuts**: Adds direct buttons for `Dashboard`, `Trending`, `Explore`, `Collections`, and `Stars` to the top header.
-- **Customizable Buttons**: Toggle specific navigation buttons on or off via the settings panel to keep your header clean.
-- **Drag & Drop Reordering**: Rearrange your navigation buttons by simply dragging them in the built-in settings panel.
-- **Active State Highlighting**: Automatically highlights the correct navigation button based on your current page.
-- **Optimized Layout**: Enhances the repository breadcrumb order to a more natural `Owner / Repo / Buttons...`.
-- **Fast & Reliable**: Fully compatible with GitHub's Turbo/PJAX navigation—no page refreshes required.
-- **Multilingual**: Supports both English and Chinese with automatic detection.
+- **Jump to the pages you use most**: Add quick access to `Dashboard`, `Explore`, `Trending`, `Collections`, and `Stars` right in the header.
+- **Shape the header around your workflow**: Keep only the shortcuts you want and arrange them in the order that makes sense for you.
+- **Pin the repos you actually use**: The home-page `Top repositories` list gets one-click pinning, so your real favorites stay at the top.
+- **Still works after `Show more`**: Expand the list and newly revealed repositories can be pinned too.
+- **Feels like GitHub, just more convenient**: The script helps you surface what matters without making GitHub feel unfamiliar.
+- **Stays with you while browsing**: The shortcuts keep working as you move around GitHub.
+- **Comfortable in both Chinese and English**: The UI follows the page language and can also be switched manually.
 
 ### 🛠️ How to Use
 1. After installation, click the Tampermonkey icon on any GitHub page.
 2. Select **"Better GitHub Nav: Open Settings Panel"** from the script menu.
-3. Toggle the buttons you want and drag rows to reorder your navigation bar.
-4. Click "Save and Refresh" to apply your changes.
+3. Keep the shortcuts you want, drag them into the order you like, and shape the header around your workflow.
+4. On the GitHub home page, use the pin button next to any repo in `Top repositories` to keep it at the top.
+5. If you open `Show more`, the newly revealed repositories can be pinned as well.
+6. From then on, the pages and repos you use most stay much closer.
 
 ### 📦 Installation
 Install the latest version via GreasyFork:
 👉 [**GreasyFork: Better GitHub Navigation**](https://greasyfork.org/scripts/567335-better-github-navigation)
 
 ### 🔍 Keywords
-GitHub UI, Navigation Enhancement, Quick Buttons, Tampermonkey, Userscript, Custom Layout, GitHub Workflow, Efficiency.
+GitHub navigation shortcuts, GitHub home sidebar, Top repositories pinning, favorite repositories, GitHub productivity, GitHub userscript, Tampermonkey, GitHub workflow.

@@ -2,9 +2,9 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.38
-// @description  Add quick access to Dashboard, Trending, Explore, Collections, and Stars from GitHub's top navigation.
-// @description:zh-CN 在 GitHub 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。
+// @version      0.1.41
+// @description  Add Dashboard, Trending, Explore, Collections, and Stars shortcuts to the top navigation bar for one-tap access to frequently used pages. Pin your most-used repositories to convenient locations.
+// @description:zh-CN 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。并把你最常用的仓库固定在顺手的位置。
 // @author       Ayubass
 // @license      MIT
 // @match        https://github.com/*
@@ -16,12 +16,13 @@
 
 (() => {
   // src/constants.js
-  var SCRIPT_VERSION = "0.1.38";
+  var SCRIPT_VERSION = "0.1.41";
   var CUSTOM_BUTTON_CLASS = "custom-gh-nav-btn";
   var CUSTOM_BUTTON_ACTIVE_CLASS = "custom-gh-nav-btn-active";
   var CUSTOM_BUTTON_COMPACT_CLASS = "custom-gh-nav-btn-compact";
   var QUICK_LINK_MARK_ATTR = "data-better-gh-nav-quick-link";
   var CONFIG_STORAGE_KEY = "better-gh-nav-config-v1";
+  var TOP_REPOSITORIES_PIN_STORAGE_KEY = "better-gh-nav-top-repositories-pins-v1";
   var UI_LANG_STORAGE_KEY = "better-gh-nav-ui-lang-v1";
   var SETTINGS_OVERLAY_ID = "custom-gh-nav-settings-overlay";
   var SETTINGS_PANEL_ID = "custom-gh-nav-settings-panel";
@@ -57,7 +58,9 @@
       restoredPendingSave: "已恢复默认，点击保存后生效。",
       atLeastOneLink: "至少保留 1 个快捷链接。",
       dragHandleTitle: "拖动调整顺序",
-      dragRowTitle: "拖动整行调整顺序"
+      dragRowTitle: "拖动整行调整顺序",
+      pinTopRepository: "置顶仓库：{repo}",
+      unpinTopRepository: "取消置顶仓库：{repo}"
     },
     en: {
       menuOpenSettings: "Better GitHub Nav: Open Settings Panel",
@@ -74,7 +77,9 @@
       restoredPendingSave: "Defaults restored. Click save to apply.",
       atLeastOneLink: "Keep at least 1 quick link.",
       dragHandleTitle: "Drag to reorder",
-      dragRowTitle: "Drag row to reorder"
+      dragRowTitle: "Drag row to reorder",
+      pinTopRepository: "Pin repository: {repo}",
+      unpinTopRepository: "Unpin repository: {repo}"
     }
   };
 
@@ -353,6 +358,57 @@
             margin-top: 8px;
             color: var(--color-attention-fg, #9a6700);
             font-size: 12px;
+        }
+        .custom-gh-top-repos-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+        }
+        .custom-gh-top-repos-link {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .custom-gh-top-repos-pin {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            width: 20px;
+            height: 20px;
+            border: none;
+            border-radius: 6px;
+            padding: 0;
+            background: transparent;
+            color: var(--color-fg-muted, #656d76);
+            cursor: pointer;
+            opacity: 0.75;
+        }
+        .custom-gh-top-repos-pin-icon {
+            width: 12px;
+            height: 12px;
+            overflow: visible;
+        }
+        .custom-gh-top-repos-pin:hover {
+            background: var(--color-neutral-muted, rgba(177, 186, 196, 0.12));
+            color: var(--color-fg-default, #1f2328);
+            opacity: 1;
+        }
+        .custom-gh-top-repos-pin:focus-visible {
+            outline: 2px solid var(--color-accent-fg, #0969da);
+            outline-offset: 1px;
+        }
+        .custom-gh-top-repos-pin.${CUSTOM_BUTTON_ACTIVE_CLASS},
+        .custom-gh-top-repos-pin-active {
+            color: var(--color-accent-fg, #0969da);
+            background: var(--color-accent-subtle, rgba(9, 105, 218, 0.08));
+            opacity: 1;
+        }
+        .custom-gh-top-repos-divider {
+            list-style: none;
+            height: 1px;
+            margin: 6px 0;
+            background: var(--color-border-muted, rgba(208, 215, 222, 0.8));
         }
     `;
     document.head.appendChild(style);
@@ -1071,19 +1127,375 @@
     });
   }
 
+  // src/top-repositories.js
+  var TOP_REPOSITORIES_HEADING_TEXT = "top repositories";
+  var TOP_REPOSITORIES_BUTTON_CLASS = "custom-gh-top-repos-pin";
+  var TOP_REPOSITORIES_BUTTON_ACTIVE_CLASS = "custom-gh-top-repos-pin-active";
+  var TOP_REPOSITORIES_BUTTON_ICON_CLASS = "custom-gh-top-repos-pin-icon";
+  var TOP_REPOSITORIES_DIVIDER_CLASS = "custom-gh-top-repos-divider";
+  var TOP_REPOSITORIES_ROW_CLASS = "custom-gh-top-repos-row";
+  var TOP_REPOSITORIES_LINK_CLASS = "custom-gh-top-repos-link";
+  var TOP_REPOSITORIES_SHOW_MORE_PREFIXES = ["show more", "show less"];
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  var RESERVED_FIRST_SEGMENTS = /* @__PURE__ */ new Set([
+    "about",
+    "account",
+    "apps",
+    "codespaces",
+    "collections",
+    "dashboard",
+    "explore",
+    "marketplace",
+    "new",
+    "notifications",
+    "organizations",
+    "orgs",
+    "pulls",
+    "repositories",
+    "search",
+    "sessions",
+    "settings",
+    "signup",
+    "site",
+    "sponsors",
+    "stars",
+    "topics",
+    "trending",
+    "users"
+  ]);
+  function normalizeText(text) {
+    return String(text || "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+  function normalizeRepoKey(repoKey) {
+    return normalizeText(repoKey).replace(/\s+/g, "");
+  }
+  function parseRepoInfoFromHref(href) {
+    try {
+      const url = new URL(href, location.origin);
+      const segments = url.pathname.split("/").filter(Boolean);
+      if (segments.length !== 2) return null;
+      const owner = decodeURIComponent(segments[0] || "");
+      const repo = decodeURIComponent(segments[1] || "");
+      if (!owner || !repo) return null;
+      if (RESERVED_FIRST_SEGMENTS.has(owner.toLowerCase())) return null;
+      return {
+        key: normalizeRepoKey(`${owner}/${repo}`),
+        label: `${owner}/${repo}`
+      };
+    } catch (error) {
+      return null;
+    }
+  }
+  function getNodeDepth(node) {
+    let depth = 0;
+    let current = node;
+    while (current && current.parentElement) {
+      depth += 1;
+      current = current.parentElement;
+    }
+    return depth;
+  }
+  function getDirectRepoRows(container) {
+    if (!container) return [];
+    const rowsByNode = /* @__PURE__ */ new Map();
+    const anchors = Array.from(container.querySelectorAll('a[href^="/"]'));
+    anchors.forEach((anchor) => {
+      let rowNode = anchor;
+      while (rowNode.parentElement && rowNode.parentElement !== container) {
+        rowNode = rowNode.parentElement;
+      }
+      if (!rowNode.parentElement || rowNode.parentElement !== container) return;
+      const repoInfo = parseRepoInfoFromHref(anchor.getAttribute("href") || "");
+      if (!repoInfo) return;
+      const existing = rowsByNode.get(rowNode);
+      if (!existing) {
+        rowsByNode.set(rowNode, {
+          node: rowNode,
+          anchor,
+          repoKey: repoInfo.key,
+          repoLabel: repoInfo.label
+        });
+        return;
+      }
+      if (anchor.textContent.trim().length > existing.anchor.textContent.trim().length) {
+        existing.anchor = anchor;
+        existing.repoKey = repoInfo.key;
+        existing.repoLabel = repoInfo.label;
+      }
+    });
+    return Array.from(rowsByNode.values());
+  }
+  function getTopRepositoriesHeading() {
+    const candidates = Array.from(
+      document.querySelectorAll('h1, h2, h3, h4, h5, h6, [role="heading"], summary, span, strong')
+    );
+    return candidates.find((node) => normalizeText(node.textContent) === TOP_REPOSITORIES_HEADING_TEXT) || null;
+  }
+  function findTopRepositoriesList() {
+    const heading = getTopRepositoriesHeading();
+    if (!heading) return null;
+    const roots = [];
+    const sectionRoot = heading.closest("section, aside");
+    if (sectionRoot) roots.push(sectionRoot);
+    if (heading.parentElement && !roots.includes(heading.parentElement)) {
+      roots.push(heading.parentElement);
+    }
+    for (const root of roots) {
+      const semanticCandidates = [
+        ...root.matches("ul, ol, nav") ? [root] : [],
+        ...Array.from(root.querySelectorAll("ul, ol, nav"))
+      ];
+      let bestSemanticMatch = null;
+      semanticCandidates.forEach((candidate) => {
+        const items = getDirectRepoRows(candidate);
+        if (!items.length) return;
+        const score = items.length * 1e3 + (items.length === candidate.children.length ? 100 : 0) + getNodeDepth(candidate);
+        if (!bestSemanticMatch || score > bestSemanticMatch.score) {
+          bestSemanticMatch = { container: candidate, items, score };
+        }
+      });
+      if (bestSemanticMatch) {
+        return { container: bestSemanticMatch.container, items: bestSemanticMatch.items };
+      }
+      const genericCandidates = [
+        ...root.matches("div") ? [root] : [],
+        ...Array.from(root.querySelectorAll("div"))
+      ];
+      let bestMatch = null;
+      genericCandidates.forEach((candidate) => {
+        const items = getDirectRepoRows(candidate);
+        if (!items.length) return;
+        const score = items.length * 1e3 + (items.length === candidate.children.length ? 100 : 0) + getNodeDepth(candidate);
+        if (!bestMatch || score > bestMatch.score) {
+          bestMatch = { container: candidate, items, score };
+        }
+      });
+      if (bestMatch) {
+        return { container: bestMatch.container, items: bestMatch.items };
+      }
+    }
+    return null;
+  }
+  function sanitizePinnedRepositories(rawValue) {
+    if (!Array.isArray(rawValue)) return [];
+    const seen = /* @__PURE__ */ new Set();
+    const result = [];
+    rawValue.forEach((item) => {
+      const repoKey = normalizeRepoKey(item);
+      if (!repoKey || seen.has(repoKey)) return;
+      seen.add(repoKey);
+      result.push(repoKey);
+    });
+    return result;
+  }
+  function loadPinnedRepositories() {
+    try {
+      const raw = localStorage.getItem(TOP_REPOSITORIES_PIN_STORAGE_KEY);
+      if (!raw) return [];
+      return sanitizePinnedRepositories(JSON.parse(raw));
+    } catch (error) {
+      return [];
+    }
+  }
+  function savePinnedRepositories(repoKeys) {
+    const pinnedRepositories = sanitizePinnedRepositories(repoKeys);
+    try {
+      localStorage.setItem(TOP_REPOSITORIES_PIN_STORAGE_KEY, JSON.stringify(pinnedRepositories));
+    } catch (error) {
+    }
+  }
+  function togglePinnedRepository(repoKey) {
+    const normalizedRepoKey = normalizeRepoKey(repoKey);
+    if (!normalizedRepoKey) return;
+    const pinnedSet = new Set(loadPinnedRepositories());
+    if (pinnedSet.has(normalizedRepoKey)) {
+      pinnedSet.delete(normalizedRepoKey);
+    } else {
+      pinnedSet.add(normalizedRepoKey);
+    }
+    savePinnedRepositories(Array.from(pinnedSet));
+  }
+  function createDividerElement(container) {
+    const tagName = container.tagName.toLowerCase();
+    const divider = document.createElement(tagName === "ul" || tagName === "ol" ? "li" : "div");
+    divider.className = TOP_REPOSITORIES_DIVIDER_CLASS;
+    divider.setAttribute("aria-hidden", "true");
+    return divider;
+  }
+  function ensureRowNodeIsWrappable(item, container) {
+    if (item.node.tagName.toLowerCase() !== "a") return item;
+    const wrapperTag = container.tagName.toLowerCase() === "ul" || container.tagName.toLowerCase() === "ol" ? "li" : "div";
+    const wrapper = document.createElement(wrapperTag);
+    wrapper.className = TOP_REPOSITORIES_ROW_CLASS;
+    item.node.replaceWith(wrapper);
+    wrapper.appendChild(item.node);
+    item.node = wrapper;
+    return item;
+  }
+  function createSvgElement(name, attrs = {}) {
+    const node = document.createElementNS(SVG_NS, name);
+    Object.entries(attrs).forEach(([key, value]) => {
+      node.setAttribute(key, String(value));
+    });
+    return node;
+  }
+  function createPinIcon(isPinned) {
+    const svg = createSvgElement("svg", {
+      viewBox: "0 0 16 16",
+      "aria-hidden": "true",
+      class: TOP_REPOSITORIES_BUTTON_ICON_CLASS
+    });
+    const head = createSvgElement("circle", {
+      cx: "10",
+      cy: "4",
+      r: "1.9",
+      fill: isPinned ? "currentColor" : "none",
+      stroke: "currentColor",
+      "stroke-width": "1.2"
+    });
+    const body = createSvgElement("rect", {
+      x: "6.8",
+      y: "5.4",
+      width: "5.1",
+      height: "2.5",
+      rx: "0.8",
+      fill: isPinned ? "currentColor" : "none",
+      stroke: "currentColor",
+      "stroke-width": "1.2",
+      transform: "rotate(32 9.35 6.65)"
+    });
+    const needle = createSvgElement("path", {
+      d: "M8.5 8.9 4.3 13.1",
+      fill: "none",
+      stroke: "currentColor",
+      "stroke-width": "1.2",
+      "stroke-linecap": "round"
+    });
+    svg.appendChild(head);
+    svg.appendChild(body);
+    svg.appendChild(needle);
+    return svg;
+  }
+  function getPrimaryContentNode(item) {
+    let current = item.anchor;
+    while (current.parentElement && current.parentElement !== item.node) {
+      if (current.parentElement.children.length !== 1) break;
+      current = current.parentElement;
+    }
+    return current;
+  }
+  function renderPinButtons(container, items, pinnedSet) {
+    items.forEach((item) => {
+      ensureRowNodeIsWrappable(item, container);
+      item.node.classList.add(TOP_REPOSITORIES_ROW_CLASS);
+      getPrimaryContentNode(item).classList.add(TOP_REPOSITORIES_LINK_CLASS);
+      item.node.querySelectorAll(`.${TOP_REPOSITORIES_BUTTON_CLASS}`).forEach((button) => button.remove());
+      const isPinned = pinnedSet.has(item.repoKey);
+      const pinButton = document.createElement("button");
+      pinButton.type = "button";
+      pinButton.className = TOP_REPOSITORIES_BUTTON_CLASS;
+      pinButton.appendChild(createPinIcon(isPinned));
+      pinButton.setAttribute("aria-pressed", isPinned ? "true" : "false");
+      pinButton.title = isPinned ? t("unpinTopRepository", { repo: item.repoLabel }) : t("pinTopRepository", { repo: item.repoLabel });
+      pinButton.setAttribute("aria-label", pinButton.title);
+      if (isPinned) {
+        pinButton.classList.add(TOP_REPOSITORIES_BUTTON_ACTIVE_CLASS);
+      }
+      pinButton.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        togglePinnedRepository(item.repoKey);
+        enhanceTopRepositories();
+      });
+      item.node.appendChild(pinButton);
+    });
+  }
+  function reorderRows(container, items, pinnedSet) {
+    const pinnedItems = items.filter((item) => pinnedSet.has(item.repoKey));
+    const regularItems = items.filter((item) => !pinnedSet.has(item.repoKey));
+    container.querySelectorAll(`:scope > .${TOP_REPOSITORIES_DIVIDER_CLASS}`).forEach((node) => node.remove());
+    const children = Array.from(container.children);
+    const repoNodes = new Set(items.map((item) => item.node));
+    const firstRepoIndex = children.findIndex((child) => repoNodes.has(child));
+    const beforeRepoChildren = firstRepoIndex < 0 ? [] : children.slice(0, firstRepoIndex).filter((child) => !repoNodes.has(child));
+    const afterRepoChildren = firstRepoIndex < 0 ? children.filter((child) => !repoNodes.has(child)) : children.slice(firstRepoIndex).filter((child) => !repoNodes.has(child));
+    const orderedNodes = [
+      ...pinnedItems.map((item) => item.node),
+      ...pinnedItems.length && regularItems.length ? [createDividerElement(container)] : [],
+      ...regularItems.map((item) => item.node)
+    ];
+    const fragment = document.createDocumentFragment();
+    beforeRepoChildren.forEach((node) => fragment.appendChild(node));
+    orderedNodes.forEach((node) => fragment.appendChild(node));
+    afterRepoChildren.forEach((node) => fragment.appendChild(node));
+    container.replaceChildren(fragment);
+  }
+  function isDashboardHomePage() {
+    const path = location.pathname.replace(/\/+$/, "") || "/";
+    return path === "/" || path === "/dashboard";
+  }
+  function hasTopRepositoriesHeading() {
+    return Boolean(getTopRepositoriesHeading());
+  }
+  function needsTopRepositoriesEnhancement() {
+    if (!isDashboardHomePage()) return false;
+    const listMatch = findTopRepositoriesList();
+    if (!listMatch || !listMatch.items.length) return false;
+    return listMatch.items.some((item) => !item.node.querySelector(`.${TOP_REPOSITORIES_BUTTON_CLASS}`));
+  }
+  function isTopRepositoriesToggleTarget(target) {
+    if (!(target instanceof Element)) return false;
+    const heading = getTopRepositoriesHeading();
+    if (!heading) return false;
+    const root = heading.closest("section, aside") || heading.parentElement;
+    if (!root) return false;
+    const trigger = target.closest('button, a, summary, [role="button"]');
+    if (!trigger || !root.contains(trigger)) return false;
+    const expanded = trigger.getAttribute("aria-expanded");
+    if (expanded === "true" || expanded === "false") return true;
+    const text = normalizeText(trigger.textContent);
+    return TOP_REPOSITORIES_SHOW_MORE_PREFIXES.some((prefix) => text.startsWith(prefix));
+  }
+  function enhanceTopRepositories() {
+    if (!isDashboardHomePage()) return;
+    const listMatch = findTopRepositoriesList();
+    if (!listMatch || !listMatch.items.length) return;
+    const pinnedSet = new Set(loadPinnedRepositories());
+    renderPinButtons(listMatch.container, listMatch.items, pinnedSet);
+    reorderRows(listMatch.container, listMatch.items, pinnedSet);
+  }
+
   // src/main.js
+  var renderQueued = false;
+  function applyEnhancements() {
+    ensureStyles();
+    addCustomButtons();
+    enhanceTopRepositories();
+  }
+  function scheduleEnhancements() {
+    if (renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(() => {
+      renderQueued = false;
+      applyEnhancements();
+    });
+  }
   console.info(`[Better GitHub Navigation] loaded v${SCRIPT_VERSION}`);
   window.__betterGithubNavVersion = SCRIPT_VERSION;
   window.__openBetterGithubNavSettings = openConfigPanel;
   registerConfigMenu();
-  ensureStyles();
-  addCustomButtons();
-  document.addEventListener("turbo:load", addCustomButtons);
-  document.addEventListener("pjax:end", addCustomButtons);
+  scheduleEnhancements();
+  document.addEventListener("turbo:load", scheduleEnhancements);
+  document.addEventListener("pjax:end", scheduleEnhancements);
+  document.addEventListener("click", (event) => {
+    if (!isTopRepositoriesToggleTarget(event.target)) return;
+    setTimeout(scheduleEnhancements, 0);
+  });
   var observer = new MutationObserver(() => {
-    if (!document.querySelector('[id^="custom-gh-btn-"]') && document.querySelector("header")) {
-      addCustomButtons();
-    }
+    const hasHeader = Boolean(document.querySelector("header"));
+    const missingNavButtons = hasHeader && !document.querySelector('[id^="custom-gh-btn-"]');
+    const missingTopRepoPins = isDashboardHomePage() && hasTopRepositoriesHeading() && needsTopRepositoriesEnhancement();
+    if (missingNavButtons || missingTopRepoPins) scheduleEnhancements();
   });
   observer.observe(document.body, { childList: true, subtree: true });
 })();

@@ -227,6 +227,57 @@ export function ensureStyles() {
             color: var(--color-attention-fg, #9a6700);
             font-size: 12px;
         }
+        .custom-gh-top-repos-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+        }
+        .custom-gh-top-repos-link {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .custom-gh-top-repos-pin {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            width: 20px;
+            height: 20px;
+            border: none;
+            border-radius: 6px;
+            padding: 0;
+            background: transparent;
+            color: var(--color-fg-muted, #656d76);
+            cursor: pointer;
+            opacity: 0.75;
+        }
+        .custom-gh-top-repos-pin-icon {
+            width: 12px;
+            height: 12px;
+            overflow: visible;
+        }
+        .custom-gh-top-repos-pin:hover {
+            background: var(--color-neutral-muted, rgba(177, 186, 196, 0.12));
+            color: var(--color-fg-default, #1f2328);
+            opacity: 1;
+        }
+        .custom-gh-top-repos-pin:focus-visible {
+            outline: 2px solid var(--color-accent-fg, #0969da);
+            outline-offset: 1px;
+        }
+        .custom-gh-top-repos-pin.${CUSTOM_BUTTON_ACTIVE_CLASS},
+        .custom-gh-top-repos-pin-active {
+            color: var(--color-accent-fg, #0969da);
+            background: var(--color-accent-subtle, rgba(9, 105, 218, 0.08));
+            opacity: 1;
+        }
+        .custom-gh-top-repos-divider {
+            list-style: none;
+            height: 1px;
+            margin: 6px 0;
+            background: var(--color-border-muted, rgba(208, 215, 222, 0.8));
+        }
     `;
     document.head.appendChild(style);
 }

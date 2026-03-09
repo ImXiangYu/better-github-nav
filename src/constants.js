@@ -5,6 +5,7 @@ export const CUSTOM_BUTTON_ACTIVE_CLASS = 'custom-gh-nav-btn-active';
 export const CUSTOM_BUTTON_COMPACT_CLASS = 'custom-gh-nav-btn-compact';
 export const QUICK_LINK_MARK_ATTR = 'data-better-gh-nav-quick-link';
 export const CONFIG_STORAGE_KEY = 'better-gh-nav-config-v1';
+export const TOP_REPOSITORIES_PIN_STORAGE_KEY = 'better-gh-nav-top-repositories-pins-v1';
 export const UI_LANG_STORAGE_KEY = 'better-gh-nav-ui-lang-v1';
 export const SETTINGS_OVERLAY_ID = 'custom-gh-nav-settings-overlay';
 export const SETTINGS_PANEL_ID = 'custom-gh-nav-settings-panel';
@@ -43,7 +44,9 @@ export const I18N = {
         restoredPendingSave: '已恢复默认，点击保存后生效。',
         atLeastOneLink: '至少保留 1 个快捷链接。',
         dragHandleTitle: '拖动调整顺序',
-        dragRowTitle: '拖动整行调整顺序'
+        dragRowTitle: '拖动整行调整顺序',
+        pinTopRepository: '置顶仓库：{repo}',
+        unpinTopRepository: '取消置顶仓库：{repo}'
     },
     en: {
         menuOpenSettings: 'Better GitHub Nav: Open Settings Panel',
@@ -60,6 +63,8 @@ export const I18N = {
         restoredPendingSave: 'Defaults restored. Click save to apply.',
         atLeastOneLink: 'Keep at least 1 quick link.',
         dragHandleTitle: 'Drag to reorder',
-        dragRowTitle: 'Drag row to reorder'
+        dragRowTitle: 'Drag row to reorder',
+        pinTopRepository: 'Pin repository: {repo}',
+        unpinTopRepository: 'Unpin repository: {repo}'
     }
 };
