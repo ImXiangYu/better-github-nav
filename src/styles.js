@@ -74,8 +74,8 @@ export function ensureStyles() {
             transform: rotate(180deg);
         }
         .custom-gh-nav-overflow-menu {
-            position: absolute;
-            top: calc(100% + 8px);
+            position: fixed;
+            top: 0;
             left: 0;
             z-index: 2147483646;
             display: flex;
@@ -376,13 +376,6 @@ export function ensureStyles() {
             height: 1px;
             margin: 6px 0;
             background: var(--color-border-muted, rgba(208, 215, 222, 0.8));
-        }
-        @media (max-width: 767px) {
-            .custom-gh-nav-overflow-menu {
-                left: auto;
-                right: 0;
-                min-width: min(240px, calc(100vw - 16px));
-            }
         }
     `;
     document.head.appendChild(style);

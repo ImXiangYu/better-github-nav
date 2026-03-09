@@ -194,20 +194,33 @@ function updateResponsiveQuickLinksToggle(state) {
 }
 
 function positionResponsiveQuickLinksMenu(state) {
-    state.menuNode.style.left = '0';
-    state.menuNode.style.right = 'auto';
-
-    const rect = state.menuNode.getBoundingClientRect();
     const viewportPadding = 8;
+    const anchorRect = state.toggleButton.getBoundingClientRect();
 
-    if (rect.right > window.innerWidth - viewportPadding) {
-        state.menuNode.style.left = 'auto';
-        state.menuNode.style.right = '0';
+    state.menuNode.style.left = `${viewportPadding}px`;
+    state.menuNode.style.top = `${Math.round(anchorRect.bottom + viewportPadding)}px`;
+
+    const menuRect = state.menuNode.getBoundingClientRect();
+    const maxLeft = Math.max(viewportPadding, window.innerWidth - menuRect.width - viewportPadding);
+    const preferredLeft = anchorRect.right - menuRect.width;
+    const fallbackLeft = anchorRect.left;
+    const unclampedLeft = preferredLeft >= viewportPadding ? preferredLeft : fallbackLeft;
+    const left = Math.min(maxLeft, Math.max(viewportPadding, unclampedLeft));
+
+    let top = anchorRect.bottom + viewportPadding;
+    const fitsBelow = top + menuRect.height <= window.innerHeight - viewportPadding;
+    const fitsAbove = anchorRect.top - viewportPadding - menuRect.height >= viewportPadding;
+    if (!fitsBelow && fitsAbove) {
+        top = anchorRect.top - viewportPadding - menuRect.height;
+    } else if (!fitsBelow) {
+        top = Math.max(
+            viewportPadding,
+            window.innerHeight - menuRect.height - viewportPadding
+        );
     }
-    if (state.menuNode.getBoundingClientRect().left < viewportPadding) {
-        state.menuNode.style.left = '0';
-        state.menuNode.style.right = 'auto';
-    }
+
+    state.menuNode.style.left = `${Math.round(left)}px`;
+    state.menuNode.style.top = `${Math.round(top)}px`;
 }
 
 function closeResponsiveQuickLinksMenu() {
@@ -217,6 +230,7 @@ function closeResponsiveQuickLinksMenu() {
     hideHotkeyTooltip();
     state.menuOpen = false;
     state.menuNode.hidden = true;
+    state.menuNode.style.visibility = '';
     updateResponsiveQuickLinksToggle(state);
 }
 
@@ -228,7 +242,9 @@ function toggleResponsiveQuickLinksMenu() {
     state.menuOpen = !state.menuOpen;
     state.menuNode.hidden = !state.menuOpen;
     if (state.menuOpen) {
+        state.menuNode.style.visibility = 'hidden';
         positionResponsiveQuickLinksMenu(state);
+        state.menuNode.style.visibility = '';
     }
     updateResponsiveQuickLinksToggle(state);
 }
@@ -352,6 +368,10 @@ function bindResponsiveQuickLinksGlobalHandlers() {
 
         const target = event.target;
         if (target && state.toggleHostNode.contains(target)) return;
+        closeResponsiveQuickLinksMenu();
+    }, true);
+
+    document.addEventListener('scroll', () => {
         closeResponsiveQuickLinksMenu();
     }, true);
 }
