@@ -1,4 +1,8 @@
-import { SCRIPT_VERSION } from './constants.js';
+import {
+    QUICK_LINK_MARK_ATTR,
+    RESPONSIVE_TOGGLE_MARK_ATTR,
+    SCRIPT_VERSION
+} from './constants.js';
 import { addCustomButtons } from './navigation.js';
 import { openConfigPanel, registerConfigMenu } from './settings-panel.js';
 import { ensureStyles } from './styles.js';
@@ -45,7 +49,10 @@ document.addEventListener('click', event => {
 // 3. 终极备用方案：使用 MutationObserver 监听 DOM 变化
 const observer = new MutationObserver(() => {
     const hasHeader = Boolean(document.querySelector('header'));
-    const missingNavButtons = hasHeader && !document.querySelector('[id^="custom-gh-btn-"]');
+    const hasCustomNavUi = Boolean(document.querySelector(
+        '[id^="custom-gh-btn-"], [' + QUICK_LINK_MARK_ATTR + '="1"], [' + RESPONSIVE_TOGGLE_MARK_ATTR + '="1"]:not([hidden])'
+    ));
+    const missingNavButtons = hasHeader && !hasCustomNavUi;
     const missingTopRepoPins = isDashboardHomePage() && hasTopRepositoriesHeading()
         && needsTopRepositoriesEnhancement();
     if (missingNavButtons || missingTopRepoPins) scheduleEnhancements();

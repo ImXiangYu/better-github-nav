@@ -1,5 +1,11 @@
-import { PRESET_LINKS, PRESET_LINK_SHORTCUTS, QUICK_LINK_MARK_ATTR } from './constants.js';
+import {
+    PRESET_LINKS,
+    PRESET_LINK_SHORTCUTS,
+    QUICK_LINK_MARK_ATTR,
+    RESPONSIVE_TOGGLE_MARK_ATTR
+} from './constants.js';
 import { getConfiguredLinks } from './config.js';
+import { t } from './i18n.js';
 import { setActiveStyle } from './styles.js';
 
 let lastHotkeyConflictSignature = '';
@@ -9,6 +15,8 @@ let hotkeyTooltipHintNode = null;
 let hotkeyTooltipAnchor = null;
 let hotkeyTooltipGlobalBound = false;
 const hotkeyTooltipBoundAnchors = new WeakSet();
+let responsiveQuickLinksState = null;
+let responsiveQuickLinksGlobalBound = false;
 
 export function normalizePath(href) {
     try {
@@ -120,6 +128,311 @@ function cleanupQuickLinksForContainer(renderParent, keepNode) {
         }
         host.remove();
     });
+}
+
+function insertNodeAfter(parent, node, referenceNode) {
+    if (!parent || !node || !referenceNode || referenceNode.parentNode !== parent) return;
+
+    const nextSibling = referenceNode.nextSibling;
+    if (node.parentNode === parent && node.previousSibling === referenceNode) return;
+    if (nextSibling === node) return;
+    parent.insertBefore(node, nextSibling);
+}
+
+function createOverflowChevronIcon() {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.setAttribute('width', '16');
+    svg.setAttribute('height', '16');
+    svg.setAttribute('fill', 'currentColor');
+    svg.classList.add('custom-gh-nav-overflow-toggle-icon');
+
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute(
+        'd',
+        'm4.427 7.427 3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z'
+    );
+    svg.appendChild(path);
+    return svg;
+}
+
+function createOverflowMenuLink(linkInfo) {
+    const link = document.createElement('a');
+    link.className = 'custom-gh-nav-overflow-link';
+    link.href = linkInfo.href;
+    link.setAttribute('aria-label', linkInfo.text);
+
+    const text = document.createElement('span');
+    text.className = 'custom-gh-nav-overflow-link-text';
+    text.textContent = linkInfo.text;
+    link.appendChild(text);
+
+    const hotkey = normalizeHotkeyValue(PRESET_LINK_SHORTCUTS[linkInfo.key]);
+    if (hotkey) {
+        const hint = document.createElement('kbd');
+        hint.className = 'custom-gh-nav-overflow-link-kbd';
+        hint.textContent = hotkey.toUpperCase();
+        hint.setAttribute('aria-hidden', 'true');
+        link.appendChild(hint);
+    }
+
+    if (isCurrentPage(linkInfo.path)) {
+        link.setAttribute('aria-current', 'page');
+    }
+
+    return link;
+}
+
+function updateResponsiveQuickLinksToggle(state) {
+    const label = state.menuOpen ? t('closeQuickLinksMenu') : t('openQuickLinksMenu');
+    state.toggleButton.title = label;
+    state.toggleButton.setAttribute('aria-label', label);
+    state.toggleButton.setAttribute('aria-expanded', state.menuOpen ? 'true' : 'false');
+}
+
+function positionResponsiveQuickLinksMenu(state) {
+    state.menuNode.style.left = '0';
+    state.menuNode.style.right = 'auto';
+
+    const rect = state.menuNode.getBoundingClientRect();
+    const viewportPadding = 8;
+
+    if (rect.right > window.innerWidth - viewportPadding) {
+        state.menuNode.style.left = 'auto';
+        state.menuNode.style.right = '0';
+    }
+    if (state.menuNode.getBoundingClientRect().left < viewportPadding) {
+        state.menuNode.style.left = '0';
+        state.menuNode.style.right = 'auto';
+    }
+}
+
+function closeResponsiveQuickLinksMenu() {
+    const state = responsiveQuickLinksState;
+    if (!state || !state.menuOpen) return;
+
+    hideHotkeyTooltip();
+    state.menuOpen = false;
+    state.menuNode.hidden = true;
+    updateResponsiveQuickLinksToggle(state);
+}
+
+function toggleResponsiveQuickLinksMenu() {
+    const state = responsiveQuickLinksState;
+    if (!state || !state.isCollapsed) return;
+
+    hideHotkeyTooltip();
+    state.menuOpen = !state.menuOpen;
+    state.menuNode.hidden = !state.menuOpen;
+    if (state.menuOpen) {
+        positionResponsiveQuickLinksMenu(state);
+    }
+    updateResponsiveQuickLinksToggle(state);
+}
+
+function restoreResponsiveInlineNodes(state) {
+    if (!state.inlineItems.length) return;
+
+    let insertAfter = state.referenceNode;
+    state.inlineItems.forEach(item => {
+        insertNodeAfter(state.renderParent, item.hostNode, insertAfter);
+        insertAfter = item.hostNode;
+    });
+    insertNodeAfter(state.renderParent, state.toggleHostNode, insertAfter);
+}
+
+function collapseResponsiveInlineNodes(state) {
+    state.inlineItems.forEach(item => {
+        if (item.hostNode.parentNode) {
+            item.hostNode.remove();
+        }
+    });
+    insertNodeAfter(state.renderParent, state.toggleHostNode, state.referenceNode);
+}
+
+function needsResponsiveQuickLinksCollapse(state) {
+    const measureContainer = state.measureContainer;
+    const baselineRect = state.referenceNode.getBoundingClientRect();
+    const containerRect = measureContainer.getBoundingClientRect();
+    const containerRight = Math.min(containerRect.right, window.innerWidth - 8);
+
+    const wrapped = state.inlineItems.some(item => {
+        if (!item.hostNode.isConnected) return false;
+        const rect = item.hostNode.getBoundingClientRect();
+        if (rect.width <= 0 && rect.height <= 0) return false;
+        return Math.abs(rect.top - baselineRect.top) > 4;
+    });
+
+    const overflowing = state.inlineItems.some(item => {
+        if (!item.hostNode.isConnected) return false;
+        const rect = item.hostNode.getBoundingClientRect();
+        if (rect.width <= 0 && rect.height <= 0) return false;
+        return rect.right > containerRight;
+    });
+
+    const scrollOverflow = (
+        measureContainer.scrollWidth > measureContainer.clientWidth + 1
+        || state.renderParent.scrollWidth > state.renderParent.clientWidth + 1
+    );
+
+    return wrapped || overflowing || scrollOverflow;
+}
+
+function syncResponsiveQuickLinksState(state) {
+    if (!state) return;
+    if (!state.renderParent.isConnected || !state.referenceNode.isConnected) {
+        destroyResponsiveQuickLinks();
+        return;
+    }
+
+    hideHotkeyTooltip();
+    closeResponsiveQuickLinksMenu();
+    restoreResponsiveInlineNodes(state);
+    state.toggleHostNode.hidden = true;
+
+    const shouldCollapse = needsResponsiveQuickLinksCollapse(state);
+    if (shouldCollapse) {
+        collapseResponsiveInlineNodes(state);
+        state.isCollapsed = true;
+        state.toggleHostNode.hidden = false;
+    } else {
+        state.isCollapsed = false;
+    }
+
+    updateResponsiveQuickLinksToggle(state);
+}
+
+function scheduleResponsiveQuickLinksSync() {
+    const state = responsiveQuickLinksState;
+    if (!state || state.syncQueued) return;
+
+    state.syncQueued = true;
+    requestAnimationFrame(() => {
+        const latestState = responsiveQuickLinksState;
+        if (!latestState) return;
+        latestState.syncQueued = false;
+        syncResponsiveQuickLinksState(latestState);
+    });
+}
+
+function destroyResponsiveQuickLinks() {
+    closeResponsiveQuickLinksMenu();
+
+    if (responsiveQuickLinksState?.resizeObserver) {
+        responsiveQuickLinksState.resizeObserver.disconnect();
+    }
+    if (responsiveQuickLinksState?.toggleHostNode?.isConnected) {
+        responsiveQuickLinksState.toggleHostNode.remove();
+    }
+
+    responsiveQuickLinksState = null;
+}
+
+function bindResponsiveQuickLinksGlobalHandlers() {
+    if (responsiveQuickLinksGlobalBound) return;
+    responsiveQuickLinksGlobalBound = true;
+
+    window.addEventListener('resize', () => {
+        closeResponsiveQuickLinksMenu();
+        scheduleResponsiveQuickLinksSync();
+    }, { passive: true });
+
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+            closeResponsiveQuickLinksMenu();
+        }
+    }, true);
+
+    document.addEventListener('pointerdown', event => {
+        const state = responsiveQuickLinksState;
+        if (!state || !state.menuOpen) return;
+
+        const target = event.target;
+        if (target && state.toggleHostNode.contains(target)) return;
+        closeResponsiveQuickLinksMenu();
+    }, true);
+}
+
+function setupResponsiveQuickLinks({
+    renderParent,
+    referenceNode,
+    inlineItems
+}) {
+    destroyResponsiveQuickLinks();
+    if (!inlineItems.length) return;
+
+    bindResponsiveQuickLinksGlobalHandlers();
+
+    const hostTagName = inlineItems[0]?.hostNode?.tagName?.toLowerCase() || 'div';
+    const toggleHostNode = document.createElement(hostTagName === 'li' ? 'li' : 'div');
+    toggleHostNode.className = 'custom-gh-nav-overflow-host';
+    toggleHostNode.setAttribute(RESPONSIVE_TOGGLE_MARK_ATTR, '1');
+    toggleHostNode.hidden = true;
+
+    const toggleButton = document.createElement('button');
+    toggleButton.type = 'button';
+    toggleButton.className = 'custom-gh-nav-overflow-toggle';
+    toggleButton.setAttribute('aria-haspopup', 'true');
+    toggleButton.setAttribute('aria-expanded', 'false');
+    toggleButton.appendChild(createOverflowChevronIcon());
+
+    const menuNode = document.createElement('nav');
+    menuNode.id = 'custom-gh-nav-overflow-menu';
+    menuNode.className = 'custom-gh-nav-overflow-menu';
+    menuNode.setAttribute('aria-label', t('quickLinksMenu'));
+    menuNode.hidden = true;
+    toggleButton.setAttribute('aria-controls', menuNode.id);
+
+    inlineItems.forEach(item => {
+        menuNode.appendChild(createOverflowMenuLink(item.linkInfo));
+    });
+
+    toggleButton.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleResponsiveQuickLinksMenu();
+    });
+
+    menuNode.addEventListener('click', event => {
+        const link = event.target.closest('a[href]');
+        if (!link) return;
+        closeResponsiveQuickLinksMenu();
+    });
+
+    toggleHostNode.appendChild(toggleButton);
+    toggleHostNode.appendChild(menuNode);
+    insertNodeAfter(renderParent, toggleHostNode, inlineItems[inlineItems.length - 1].hostNode || referenceNode);
+
+    const state = {
+        inlineItems,
+        isCollapsed: false,
+        measureContainer: renderParent.closest('nav') || renderParent,
+        menuNode,
+        menuOpen: false,
+        referenceNode,
+        renderParent,
+        resizeObserver: null,
+        syncQueued: false,
+        toggleButton,
+        toggleHostNode,
+        toggleLabelNode: null
+    };
+
+    if (typeof ResizeObserver === 'function') {
+        state.resizeObserver = new ResizeObserver(() => {
+            scheduleResponsiveQuickLinksSync();
+        });
+        state.resizeObserver.observe(renderParent);
+        if (state.measureContainer !== renderParent) {
+            state.resizeObserver.observe(state.measureContainer);
+        }
+    }
+
+    responsiveQuickLinksState = state;
+    syncResponsiveQuickLinksState(state);
 }
 
 function normalizeHotkeyValue(value) {
@@ -366,6 +679,8 @@ function reportHotkeyConflicts(customAnchors) {
 }
 
 export function addCustomButtons() {
+    destroyResponsiveQuickLinks();
+
     // 获取当前登录的用户名，用来动态生成 Stars 页面的专属链接
     const userLoginMeta = document.querySelector('meta[name="user-login"]');
     const username = userLoginMeta ? userLoginMeta.getAttribute('content') : '';
@@ -546,6 +861,7 @@ export function addCustomButtons() {
 
         const hasShortcutActive = navPresetLinks.some(link => isCurrentPage(link.path));
         const renderedQuickAnchors = [];
+        const renderedQuickItems = [];
 
         if (isOnPresetPage && anchorTag && primaryLink) {
             // 预设页面：首个按钮替换为当前配置顺序中的第一个
@@ -598,8 +914,18 @@ export function addCustomButtons() {
             // 将新按钮插入到锚点之后，并更新锚点
             insertAfterNode.parentNode.insertBefore(newNode, insertAfterNode.nextSibling);
             insertAfterNode = newNode;
+            renderedQuickItems.push({
+                anchor: aTag,
+                hostNode: newNode,
+                linkInfo
+            });
         });
 
-        reportHotkeyConflicts(renderedQuickAnchors);
+        setupResponsiveQuickLinks({
+            inlineItems: renderedQuickItems,
+            referenceNode: insertAnchorNode,
+            renderParent: insertAnchorNode.parentNode
+        });
+        reportHotkeyConflicts(renderedQuickAnchors.filter(anchor => anchor.isConnected));
     }
 }

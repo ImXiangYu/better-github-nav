@@ -2,9 +2,9 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.41
-// @description  Add Dashboard, Trending, Explore, Collections, and Stars shortcuts to the top navigation bar for one-tap access to frequently used pages. Pin your most-used repositories to convenient locations.
-// @description:zh-CN 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。并把你最常用的仓库固定在顺手的位置。
+// @version      0.1.44
+// @description  Bring Dashboard, Trending, Explore, Collections, and Stars closer on desktop and narrow screens, and keep your most-used repositories pinned where they are easiest to reach.
+// @description:zh-CN 在桌面端和窄屏场景下，把 Dashboard、Trending、Explore、Collections、Stars 放到更顺手的位置，并把你最常用的仓库固定在最容易到达的地方。
 // @author       Ayubass
 // @license      MIT
 // @match        https://github.com/*
@@ -16,11 +16,12 @@
 
 (() => {
   // src/constants.js
-  var SCRIPT_VERSION = "0.1.41";
+  var SCRIPT_VERSION = "0.1.44";
   var CUSTOM_BUTTON_CLASS = "custom-gh-nav-btn";
   var CUSTOM_BUTTON_ACTIVE_CLASS = "custom-gh-nav-btn-active";
   var CUSTOM_BUTTON_COMPACT_CLASS = "custom-gh-nav-btn-compact";
   var QUICK_LINK_MARK_ATTR = "data-better-gh-nav-quick-link";
+  var RESPONSIVE_TOGGLE_MARK_ATTR = "data-better-gh-nav-overflow-toggle";
   var CONFIG_STORAGE_KEY = "better-gh-nav-config-v1";
   var TOP_REPOSITORIES_PIN_STORAGE_KEY = "better-gh-nav-top-repositories-pins-v1";
   var UI_LANG_STORAGE_KEY = "better-gh-nav-ui-lang-v1";
@@ -57,6 +58,9 @@
       saveAndRefresh: "保存并刷新",
       restoredPendingSave: "已恢复默认，点击保存后生效。",
       atLeastOneLink: "至少保留 1 个快捷链接。",
+      openQuickLinksMenu: "展开快捷链接",
+      closeQuickLinksMenu: "收起快捷链接",
+      quickLinksMenu: "快捷链接",
       dragHandleTitle: "拖动调整顺序",
       dragRowTitle: "拖动整行调整顺序",
       pinTopRepository: "置顶仓库：{repo}",
@@ -76,6 +80,9 @@
       saveAndRefresh: "Save and Refresh",
       restoredPendingSave: "Defaults restored. Click save to apply.",
       atLeastOneLink: "Keep at least 1 quick link.",
+      openQuickLinksMenu: "Show quick links",
+      closeQuickLinksMenu: "Hide quick links",
+      quickLinksMenu: "Quick links",
       dragHandleTitle: "Drag to reorder",
       dragRowTitle: "Drag row to reorder",
       pinTopRepository: "Pin repository: {repo}",
@@ -137,6 +144,35 @@
     return link ? link.text : key;
   }
 
+  // src/i18n.js
+  var uiLang = detectUiLang();
+  function t(key, vars = {}) {
+    const dict = I18N[uiLang] || I18N.en;
+    const fallback = I18N.en;
+    const template = dict[key] || fallback[key] || key;
+    return template.replace(/\{(\w+)\}/g, (_, varName) => String(vars[varName] ?? ""));
+  }
+  function detectUiLang() {
+    try {
+      const preferredLang = (localStorage.getItem(UI_LANG_STORAGE_KEY) || "").toLowerCase();
+      if (preferredLang === "zh" || preferredLang === "en") return preferredLang;
+    } catch (e) {
+    }
+    const autoLang = (document.documentElement.lang || navigator.language || "").toLowerCase();
+    return autoLang.startsWith("zh") ? "zh" : "en";
+  }
+  function setUiLangPreference(lang) {
+    try {
+      if (lang === "zh" || lang === "en") {
+        localStorage.setItem(UI_LANG_STORAGE_KEY, lang);
+      } else {
+        localStorage.removeItem(UI_LANG_STORAGE_KEY);
+      }
+    } catch (e) {
+    }
+    uiLang = detectUiLang();
+  }
+
   // src/styles.js
   function ensureStyles() {
     if (document.getElementById("custom-gh-nav-style")) return;
@@ -166,6 +202,105 @@
         a.${CUSTOM_BUTTON_CLASS}.${CUSTOM_BUTTON_ACTIVE_CLASS} {
             background-color: var(--color-neutral-muted, rgba(177, 186, 196, 0.18));
             font-weight: 600;
+        }
+        .custom-gh-nav-overflow-host {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            list-style: none;
+        }
+        .custom-gh-nav-overflow-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            min-width: 28px;
+            min-height: 28px;
+            padding: 0;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--color-fg-default, #1f2328);
+            font: inherit;
+            font-weight: 600;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .custom-gh-nav-overflow-toggle:hover,
+        .custom-gh-nav-overflow-toggle[aria-expanded="true"] {
+            background-color: var(--color-neutral-muted, rgba(177, 186, 196, 0.12));
+        }
+        .custom-gh-nav-overflow-toggle:focus-visible {
+            outline: 2px solid var(--color-accent-fg, #0969da);
+            outline-offset: 1px;
+        }
+        .custom-gh-nav-overflow-toggle-icon {
+            flex: 0 0 auto;
+            transition: transform 120ms ease;
+        }
+        .custom-gh-nav-overflow-toggle[aria-expanded="true"] .custom-gh-nav-overflow-toggle-icon {
+            transform: rotate(180deg);
+        }
+        .custom-gh-nav-overflow-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            z-index: 2147483646;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 220px;
+            max-width: min(280px, calc(100vw - 16px));
+            padding: 6px;
+            border: 1px solid var(--color-border-default, #d1d9e0);
+            border-radius: 12px;
+            background: var(--color-canvas-default, #fff);
+            box-shadow: var(--color-shadow-large, 0 16px 32px rgba(0, 0, 0, 0.16));
+            box-sizing: border-box;
+        }
+        .custom-gh-nav-overflow-menu[hidden] {
+            display: none !important;
+        }
+        .custom-gh-nav-overflow-link {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 32px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            color: var(--color-fg-default, #1f2328);
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .custom-gh-nav-overflow-link:hover {
+            background: var(--color-neutral-muted, rgba(177, 186, 196, 0.12));
+            text-decoration: none;
+        }
+        .custom-gh-nav-overflow-link[aria-current="page"] {
+            color: var(--color-accent-fg, #0969da);
+            background: var(--color-accent-subtle, rgba(9, 105, 218, 0.08));
+        }
+        .custom-gh-nav-overflow-link-text {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .custom-gh-nav-overflow-link-kbd {
+            flex: 0 0 auto;
+            margin: 0;
+            padding: 2px 6px;
+            border: none !important;
+            border-radius: 999px;
+            background: var(--color-neutral-muted, rgba(177, 186, 196, 0.18)) !important;
+            color: var(--color-fg-muted, #656d76);
+            box-shadow: none !important;
+            font: inherit;
+            font-size: 11px;
+            line-height: 1.2;
+            text-transform: uppercase;
         }
         .custom-gh-nav-tooltip {
             position: fixed;
@@ -410,6 +545,13 @@
             margin: 6px 0;
             background: var(--color-border-muted, rgba(208, 215, 222, 0.8));
         }
+        @media (max-width: 767px) {
+            .custom-gh-nav-overflow-menu {
+                left: auto;
+                right: 0;
+                min-width: min(240px, calc(100vw - 16px));
+            }
+        }
     `;
     document.head.appendChild(style);
   }
@@ -437,6 +579,8 @@
   var hotkeyTooltipAnchor = null;
   var hotkeyTooltipGlobalBound = false;
   var hotkeyTooltipBoundAnchors = /* @__PURE__ */ new WeakSet();
+  var responsiveQuickLinksState = null;
+  var responsiveQuickLinksGlobalBound = false;
   function normalizePath(href) {
     try {
       const url = new URL(href, location.origin);
@@ -524,6 +668,257 @@
       }
       host.remove();
     });
+  }
+  function insertNodeAfter(parent, node, referenceNode) {
+    if (!parent || !node || !referenceNode || referenceNode.parentNode !== parent) return;
+    const nextSibling = referenceNode.nextSibling;
+    if (node.parentNode === parent && node.previousSibling === referenceNode) return;
+    if (nextSibling === node) return;
+    parent.insertBefore(node, nextSibling);
+  }
+  function createOverflowChevronIcon() {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    svg.setAttribute("viewBox", "0 0 16 16");
+    svg.setAttribute("width", "16");
+    svg.setAttribute("height", "16");
+    svg.setAttribute("fill", "currentColor");
+    svg.classList.add("custom-gh-nav-overflow-toggle-icon");
+    const path = document.createElementNS(ns, "path");
+    path.setAttribute(
+      "d",
+      "m4.427 7.427 3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z"
+    );
+    svg.appendChild(path);
+    return svg;
+  }
+  function createOverflowMenuLink(linkInfo) {
+    const link = document.createElement("a");
+    link.className = "custom-gh-nav-overflow-link";
+    link.href = linkInfo.href;
+    link.setAttribute("aria-label", linkInfo.text);
+    const text = document.createElement("span");
+    text.className = "custom-gh-nav-overflow-link-text";
+    text.textContent = linkInfo.text;
+    link.appendChild(text);
+    const hotkey = normalizeHotkeyValue(PRESET_LINK_SHORTCUTS[linkInfo.key]);
+    if (hotkey) {
+      const hint = document.createElement("kbd");
+      hint.className = "custom-gh-nav-overflow-link-kbd";
+      hint.textContent = hotkey.toUpperCase();
+      hint.setAttribute("aria-hidden", "true");
+      link.appendChild(hint);
+    }
+    if (isCurrentPage(linkInfo.path)) {
+      link.setAttribute("aria-current", "page");
+    }
+    return link;
+  }
+  function updateResponsiveQuickLinksToggle(state) {
+    const label = state.menuOpen ? t("closeQuickLinksMenu") : t("openQuickLinksMenu");
+    state.toggleButton.title = label;
+    state.toggleButton.setAttribute("aria-label", label);
+    state.toggleButton.setAttribute("aria-expanded", state.menuOpen ? "true" : "false");
+  }
+  function positionResponsiveQuickLinksMenu(state) {
+    state.menuNode.style.left = "0";
+    state.menuNode.style.right = "auto";
+    const rect = state.menuNode.getBoundingClientRect();
+    const viewportPadding = 8;
+    if (rect.right > window.innerWidth - viewportPadding) {
+      state.menuNode.style.left = "auto";
+      state.menuNode.style.right = "0";
+    }
+    if (state.menuNode.getBoundingClientRect().left < viewportPadding) {
+      state.menuNode.style.left = "0";
+      state.menuNode.style.right = "auto";
+    }
+  }
+  function closeResponsiveQuickLinksMenu() {
+    const state = responsiveQuickLinksState;
+    if (!state || !state.menuOpen) return;
+    hideHotkeyTooltip();
+    state.menuOpen = false;
+    state.menuNode.hidden = true;
+    updateResponsiveQuickLinksToggle(state);
+  }
+  function toggleResponsiveQuickLinksMenu() {
+    const state = responsiveQuickLinksState;
+    if (!state || !state.isCollapsed) return;
+    hideHotkeyTooltip();
+    state.menuOpen = !state.menuOpen;
+    state.menuNode.hidden = !state.menuOpen;
+    if (state.menuOpen) {
+      positionResponsiveQuickLinksMenu(state);
+    }
+    updateResponsiveQuickLinksToggle(state);
+  }
+  function restoreResponsiveInlineNodes(state) {
+    if (!state.inlineItems.length) return;
+    let insertAfter = state.referenceNode;
+    state.inlineItems.forEach((item) => {
+      insertNodeAfter(state.renderParent, item.hostNode, insertAfter);
+      insertAfter = item.hostNode;
+    });
+    insertNodeAfter(state.renderParent, state.toggleHostNode, insertAfter);
+  }
+  function collapseResponsiveInlineNodes(state) {
+    state.inlineItems.forEach((item) => {
+      if (item.hostNode.parentNode) {
+        item.hostNode.remove();
+      }
+    });
+    insertNodeAfter(state.renderParent, state.toggleHostNode, state.referenceNode);
+  }
+  function needsResponsiveQuickLinksCollapse(state) {
+    const measureContainer = state.measureContainer;
+    const baselineRect = state.referenceNode.getBoundingClientRect();
+    const containerRect = measureContainer.getBoundingClientRect();
+    const containerRight = Math.min(containerRect.right, window.innerWidth - 8);
+    const wrapped = state.inlineItems.some((item) => {
+      if (!item.hostNode.isConnected) return false;
+      const rect = item.hostNode.getBoundingClientRect();
+      if (rect.width <= 0 && rect.height <= 0) return false;
+      return Math.abs(rect.top - baselineRect.top) > 4;
+    });
+    const overflowing = state.inlineItems.some((item) => {
+      if (!item.hostNode.isConnected) return false;
+      const rect = item.hostNode.getBoundingClientRect();
+      if (rect.width <= 0 && rect.height <= 0) return false;
+      return rect.right > containerRight;
+    });
+    const scrollOverflow = measureContainer.scrollWidth > measureContainer.clientWidth + 1 || state.renderParent.scrollWidth > state.renderParent.clientWidth + 1;
+    return wrapped || overflowing || scrollOverflow;
+  }
+  function syncResponsiveQuickLinksState(state) {
+    if (!state) return;
+    if (!state.renderParent.isConnected || !state.referenceNode.isConnected) {
+      destroyResponsiveQuickLinks();
+      return;
+    }
+    hideHotkeyTooltip();
+    closeResponsiveQuickLinksMenu();
+    restoreResponsiveInlineNodes(state);
+    state.toggleHostNode.hidden = true;
+    const shouldCollapse = needsResponsiveQuickLinksCollapse(state);
+    if (shouldCollapse) {
+      collapseResponsiveInlineNodes(state);
+      state.isCollapsed = true;
+      state.toggleHostNode.hidden = false;
+    } else {
+      state.isCollapsed = false;
+    }
+    updateResponsiveQuickLinksToggle(state);
+  }
+  function scheduleResponsiveQuickLinksSync() {
+    const state = responsiveQuickLinksState;
+    if (!state || state.syncQueued) return;
+    state.syncQueued = true;
+    requestAnimationFrame(() => {
+      const latestState = responsiveQuickLinksState;
+      if (!latestState) return;
+      latestState.syncQueued = false;
+      syncResponsiveQuickLinksState(latestState);
+    });
+  }
+  function destroyResponsiveQuickLinks() {
+    closeResponsiveQuickLinksMenu();
+    if (responsiveQuickLinksState?.resizeObserver) {
+      responsiveQuickLinksState.resizeObserver.disconnect();
+    }
+    if (responsiveQuickLinksState?.toggleHostNode?.isConnected) {
+      responsiveQuickLinksState.toggleHostNode.remove();
+    }
+    responsiveQuickLinksState = null;
+  }
+  function bindResponsiveQuickLinksGlobalHandlers() {
+    if (responsiveQuickLinksGlobalBound) return;
+    responsiveQuickLinksGlobalBound = true;
+    window.addEventListener("resize", () => {
+      closeResponsiveQuickLinksMenu();
+      scheduleResponsiveQuickLinksSync();
+    }, { passive: true });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeResponsiveQuickLinksMenu();
+      }
+    }, true);
+    document.addEventListener("pointerdown", (event) => {
+      const state = responsiveQuickLinksState;
+      if (!state || !state.menuOpen) return;
+      const target = event.target;
+      if (target && state.toggleHostNode.contains(target)) return;
+      closeResponsiveQuickLinksMenu();
+    }, true);
+  }
+  function setupResponsiveQuickLinks({
+    renderParent,
+    referenceNode,
+    inlineItems
+  }) {
+    destroyResponsiveQuickLinks();
+    if (!inlineItems.length) return;
+    bindResponsiveQuickLinksGlobalHandlers();
+    const hostTagName = inlineItems[0]?.hostNode?.tagName?.toLowerCase() || "div";
+    const toggleHostNode = document.createElement(hostTagName === "li" ? "li" : "div");
+    toggleHostNode.className = "custom-gh-nav-overflow-host";
+    toggleHostNode.setAttribute(RESPONSIVE_TOGGLE_MARK_ATTR, "1");
+    toggleHostNode.hidden = true;
+    const toggleButton = document.createElement("button");
+    toggleButton.type = "button";
+    toggleButton.className = "custom-gh-nav-overflow-toggle";
+    toggleButton.setAttribute("aria-haspopup", "true");
+    toggleButton.setAttribute("aria-expanded", "false");
+    toggleButton.appendChild(createOverflowChevronIcon());
+    const menuNode = document.createElement("nav");
+    menuNode.id = "custom-gh-nav-overflow-menu";
+    menuNode.className = "custom-gh-nav-overflow-menu";
+    menuNode.setAttribute("aria-label", t("quickLinksMenu"));
+    menuNode.hidden = true;
+    toggleButton.setAttribute("aria-controls", menuNode.id);
+    inlineItems.forEach((item) => {
+      menuNode.appendChild(createOverflowMenuLink(item.linkInfo));
+    });
+    toggleButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleResponsiveQuickLinksMenu();
+    });
+    menuNode.addEventListener("click", (event) => {
+      const link = event.target.closest("a[href]");
+      if (!link) return;
+      closeResponsiveQuickLinksMenu();
+    });
+    toggleHostNode.appendChild(toggleButton);
+    toggleHostNode.appendChild(menuNode);
+    insertNodeAfter(renderParent, toggleHostNode, inlineItems[inlineItems.length - 1].hostNode || referenceNode);
+    const state = {
+      inlineItems,
+      isCollapsed: false,
+      measureContainer: renderParent.closest("nav") || renderParent,
+      menuNode,
+      menuOpen: false,
+      referenceNode,
+      renderParent,
+      resizeObserver: null,
+      syncQueued: false,
+      toggleButton,
+      toggleHostNode,
+      toggleLabelNode: null
+    };
+    if (typeof ResizeObserver === "function") {
+      state.resizeObserver = new ResizeObserver(() => {
+        scheduleResponsiveQuickLinksSync();
+      });
+      state.resizeObserver.observe(renderParent);
+      if (state.measureContainer !== renderParent) {
+        state.resizeObserver.observe(state.measureContainer);
+      }
+    }
+    responsiveQuickLinksState = state;
+    syncResponsiveQuickLinksState(state);
   }
   function normalizeHotkeyValue(value) {
     return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -721,6 +1116,7 @@
     );
   }
   function addCustomButtons() {
+    destroyResponsiveQuickLinks();
     const userLoginMeta = document.querySelector('meta[name="user-login"]');
     const username = userLoginMeta ? userLoginMeta.getAttribute("content") : "";
     const navPresetLinks = getConfiguredLinks(username);
@@ -848,6 +1244,7 @@
       cleanupQuickLinksForContainer(insertAnchorNode.parentNode, insertAnchorNode);
       const hasShortcutActive = navPresetLinks.some((link) => isCurrentPage(link.path));
       const renderedQuickAnchors = [];
+      const renderedQuickItems = [];
       if (isOnPresetPage && anchorTag && primaryLink) {
         anchorTag.id = primaryLink.id;
         anchorTag.setAttribute(QUICK_LINK_MARK_ATTR, "1");
@@ -886,38 +1283,19 @@
         setActiveStyle(aTag, isCurrentPage(linkInfo.path), shouldUseCompactButtons);
         insertAfterNode.parentNode.insertBefore(newNode, insertAfterNode.nextSibling);
         insertAfterNode = newNode;
+        renderedQuickItems.push({
+          anchor: aTag,
+          hostNode: newNode,
+          linkInfo
+        });
       });
-      reportHotkeyConflicts(renderedQuickAnchors);
+      setupResponsiveQuickLinks({
+        inlineItems: renderedQuickItems,
+        referenceNode: insertAnchorNode,
+        renderParent: insertAnchorNode.parentNode
+      });
+      reportHotkeyConflicts(renderedQuickAnchors.filter((anchor) => anchor.isConnected));
     }
-  }
-
-  // src/i18n.js
-  var uiLang = detectUiLang();
-  function t(key, vars = {}) {
-    const dict = I18N[uiLang] || I18N.en;
-    const fallback = I18N.en;
-    const template = dict[key] || fallback[key] || key;
-    return template.replace(/\{(\w+)\}/g, (_, varName) => String(vars[varName] ?? ""));
-  }
-  function detectUiLang() {
-    try {
-      const preferredLang = (localStorage.getItem(UI_LANG_STORAGE_KEY) || "").toLowerCase();
-      if (preferredLang === "zh" || preferredLang === "en") return preferredLang;
-    } catch (e) {
-    }
-    const autoLang = (document.documentElement.lang || navigator.language || "").toLowerCase();
-    return autoLang.startsWith("zh") ? "zh" : "en";
-  }
-  function setUiLangPreference(lang) {
-    try {
-      if (lang === "zh" || lang === "en") {
-        localStorage.setItem(UI_LANG_STORAGE_KEY, lang);
-      } else {
-        localStorage.removeItem(UI_LANG_STORAGE_KEY);
-      }
-    } catch (e) {
-    }
-    uiLang = detectUiLang();
   }
 
   // src/settings-panel.js
@@ -1493,7 +1871,10 @@
   });
   var observer = new MutationObserver(() => {
     const hasHeader = Boolean(document.querySelector("header"));
-    const missingNavButtons = hasHeader && !document.querySelector('[id^="custom-gh-btn-"]');
+    const hasCustomNavUi = Boolean(document.querySelector(
+      '[id^="custom-gh-btn-"], [' + QUICK_LINK_MARK_ATTR + '="1"], [' + RESPONSIVE_TOGGLE_MARK_ATTR + '="1"]:not([hidden])'
+    ));
+    const missingNavButtons = hasHeader && !hasCustomNavUi;
     const missingTopRepoPins = isDashboardHomePage() && hasTopRepositoriesHeading() && needsTopRepositoriesEnhancement();
     if (missingNavButtons || missingTopRepoPins) scheduleEnhancements();
   });
