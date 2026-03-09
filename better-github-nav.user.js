@@ -2,9 +2,9 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.43
-// @description  Add Dashboard, Trending, Explore, Collections, and Stars shortcuts to the top navigation bar for one-tap access to frequently used pages. Pin your most-used repositories to convenient locations.
-// @description:zh-CN 顶部导航中加入 Dashboard、Trending、Explore、Collections、Stars 快捷入口，常用页面一键直达。并把你最常用的仓库固定在顺手的位置。
+// @version      0.1.44
+// @description  Bring Dashboard, Trending, Explore, Collections, and Stars closer on desktop and narrow screens, and keep your most-used repositories pinned where they are easiest to reach.
+// @description:zh-CN 在桌面端和窄屏场景下，把 Dashboard、Trending、Explore、Collections、Stars 放到更顺手的位置，并把你最常用的仓库固定在最容易到达的地方。
 // @author       Ayubass
 // @license      MIT
 // @match        https://github.com/*
@@ -16,7 +16,7 @@
 
 (() => {
   // src/constants.js
-  var SCRIPT_VERSION = "0.1.43";
+  var SCRIPT_VERSION = "0.1.44";
   var CUSTOM_BUTTON_CLASS = "custom-gh-nav-btn";
   var CUSTOM_BUTTON_ACTIVE_CLASS = "custom-gh-nav-btn-active";
   var CUSTOM_BUTTON_COMPACT_CLASS = "custom-gh-nav-btn-compact";

@@ -1,7 +1,7 @@
 {
   "name": "better-github-nav",
-  "version": "0.1.43",
-  "description": "Add Dashboard, Trending, Explore, Collections, and Stars shortcuts to the top navigation bar for one-tap access to frequently used pages. Pin your most-used repositories to convenient locations.",
+  "version": "0.1.44",
+  "description": "Bring Dashboard, Trending, Explore, Collections, and Stars closer on desktop and narrow screens, and keep your most-used repositories pinned where they are easiest to reach.",
   "private": true,
   "scripts": {
     "build": "node scripts/build.mjs",
