@@ -4,6 +4,7 @@ export const CUSTOM_BUTTON_CLASS = 'custom-gh-nav-btn';
 export const CUSTOM_BUTTON_ACTIVE_CLASS = 'custom-gh-nav-btn-active';
 export const CUSTOM_BUTTON_COMPACT_CLASS = 'custom-gh-nav-btn-compact';
 export const QUICK_LINK_MARK_ATTR = 'data-better-gh-nav-quick-link';
+export const RESPONSIVE_TOGGLE_MARK_ATTR = 'data-better-gh-nav-overflow-toggle';
 export const CONFIG_STORAGE_KEY = 'better-gh-nav-config-v1';
 export const TOP_REPOSITORIES_PIN_STORAGE_KEY = 'better-gh-nav-top-repositories-pins-v1';
 export const UI_LANG_STORAGE_KEY = 'better-gh-nav-ui-lang-v1';
@@ -43,6 +44,9 @@ export const I18N = {
         saveAndRefresh: '保存并刷新',
         restoredPendingSave: '已恢复默认，点击保存后生效。',
         atLeastOneLink: '至少保留 1 个快捷链接。',
+        openQuickLinksMenu: '展开快捷链接',
+        closeQuickLinksMenu: '收起快捷链接',
+        quickLinksMenu: '快捷链接',
         dragHandleTitle: '拖动调整顺序',
         dragRowTitle: '拖动整行调整顺序',
         pinTopRepository: '置顶仓库：{repo}',
@@ -62,6 +66,9 @@ export const I18N = {
         saveAndRefresh: 'Save and Refresh',
         restoredPendingSave: 'Defaults restored. Click save to apply.',
         atLeastOneLink: 'Keep at least 1 quick link.',
+        openQuickLinksMenu: 'Show quick links',
+        closeQuickLinksMenu: 'Hide quick links',
+        quickLinksMenu: 'Quick links',
         dragHandleTitle: 'Drag to reorder',
         dragRowTitle: 'Drag row to reorder',
         pinTopRepository: 'Pin repository: {repo}',

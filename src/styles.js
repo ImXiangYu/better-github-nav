@@ -35,6 +35,105 @@ export function ensureStyles() {
             background-color: var(--color-neutral-muted, rgba(177, 186, 196, 0.18));
             font-weight: 600;
         }
+        .custom-gh-nav-overflow-host {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            list-style: none;
+        }
+        .custom-gh-nav-overflow-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            min-width: 28px;
+            min-height: 28px;
+            padding: 0;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--color-fg-default, #1f2328);
+            font: inherit;
+            font-weight: 600;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .custom-gh-nav-overflow-toggle:hover,
+        .custom-gh-nav-overflow-toggle[aria-expanded="true"] {
+            background-color: var(--color-neutral-muted, rgba(177, 186, 196, 0.12));
+        }
+        .custom-gh-nav-overflow-toggle:focus-visible {
+            outline: 2px solid var(--color-accent-fg, #0969da);
+            outline-offset: 1px;
+        }
+        .custom-gh-nav-overflow-toggle-icon {
+            flex: 0 0 auto;
+            transition: transform 120ms ease;
+        }
+        .custom-gh-nav-overflow-toggle[aria-expanded="true"] .custom-gh-nav-overflow-toggle-icon {
+            transform: rotate(180deg);
+        }
+        .custom-gh-nav-overflow-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            z-index: 2147483646;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 220px;
+            max-width: min(280px, calc(100vw - 16px));
+            padding: 6px;
+            border: 1px solid var(--color-border-default, #d1d9e0);
+            border-radius: 12px;
+            background: var(--color-canvas-default, #fff);
+            box-shadow: var(--color-shadow-large, 0 16px 32px rgba(0, 0, 0, 0.16));
+            box-sizing: border-box;
+        }
+        .custom-gh-nav-overflow-menu[hidden] {
+            display: none !important;
+        }
+        .custom-gh-nav-overflow-link {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 32px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            color: var(--color-fg-default, #1f2328);
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .custom-gh-nav-overflow-link:hover {
+            background: var(--color-neutral-muted, rgba(177, 186, 196, 0.12));
+            text-decoration: none;
+        }
+        .custom-gh-nav-overflow-link[aria-current="page"] {
+            color: var(--color-accent-fg, #0969da);
+            background: var(--color-accent-subtle, rgba(9, 105, 218, 0.08));
+        }
+        .custom-gh-nav-overflow-link-text {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .custom-gh-nav-overflow-link-kbd {
+            flex: 0 0 auto;
+            margin: 0;
+            padding: 2px 6px;
+            border: none !important;
+            border-radius: 999px;
+            background: var(--color-neutral-muted, rgba(177, 186, 196, 0.18)) !important;
+            color: var(--color-fg-muted, #656d76);
+            box-shadow: none !important;
+            font: inherit;
+            font-size: 11px;
+            line-height: 1.2;
+            text-transform: uppercase;
+        }
         .custom-gh-nav-tooltip {
             position: fixed;
             z-index: 2147483647;
@@ -277,6 +376,13 @@ export function ensureStyles() {
             height: 1px;
             margin: 6px 0;
             background: var(--color-border-muted, rgba(208, 215, 222, 0.8));
+        }
+        @media (max-width: 767px) {
+            .custom-gh-nav-overflow-menu {
+                left: auto;
+                right: 0;
+                min-width: min(240px, calc(100vw - 16px));
+            }
         }
     `;
     document.head.appendChild(style);
