@@ -1,7 +1,7 @@
 {
   "name": "better-github-nav",
-  "version": "0.1.38",
-  "description": "Build tools for the Better GitHub Navigation userscript.",
+  "version": "0.1.41",
+  "description": "Add customizable GitHub shortcuts and keep your most-used repositories one click away.",
   "private": true,
   "scripts": {
     "build": "node scripts/build.mjs",
