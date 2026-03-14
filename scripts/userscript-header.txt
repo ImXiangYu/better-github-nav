@@ -3,8 +3,8 @@
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
 // @version      __VERSION__
-// @description  Bring Dashboard, Trending, Explore, Collections, and Stars closer on desktop and narrow screens, and keep your most-used repositories pinned where they are easiest to reach.
-// @description:zh-CN 在桌面端和窄屏场景下，把 Dashboard、Trending、Explore、Collections、Stars 放到更顺手的位置，并把你最常用的仓库固定在最容易到达的地方。
+// @description  Supports adding commonly used sections such as Dashboard, Explore, Trending, Collections, and Stars to the navigation bar for one-click access. Allows customization of visibility and order. Supports dark mode and narrow-screen layouts. Also includes a “GitHub Top Repositories” feature for pinning repositories, making frequently used repositories easy to access.
+// @description:zh-CN 支持将 DashBoard、Explore、Trending、Collections、Stars 等常用入口放入导航栏中一键直达。支持自定义是否显示，自定义顺序。支持深色模式、窄屏场景。同时加入了 Github Top repositories 显示仓库置顶功能，常用仓库一键置顶，方便查看。
 // @author       Ayubass
 // @license      MIT
 // @match        https://github.com/*
