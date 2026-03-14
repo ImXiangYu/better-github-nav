@@ -4,6 +4,10 @@ import {
     PRESET_LINKS
 } from './constants.js';
 
+export function sanitizeThemePreference(themePreference) {
+    return themePreference === 'light' || themePreference === 'dark' ? themePreference : 'auto';
+}
+
 export function sanitizeKeys(keys) {
     const validSet = new Set(DEFAULT_LINK_KEYS);
     const seen = new Set();
@@ -25,9 +29,11 @@ export function sanitizeConfig(rawConfig) {
         ...orderKeysRaw,
         ...DEFAULT_LINK_KEYS.filter(key => !orderSet.has(key))
     ];
+    const themePreference = sanitizeThemePreference(rawConfig?.themePreference);
     return {
         enabledKeys: enabledKeys.length ? enabledKeys : DEFAULT_LINK_KEYS.slice(),
-        orderKeys: orderKeys.length ? orderKeys : DEFAULT_LINK_KEYS.slice()
+        orderKeys: orderKeys.length ? orderKeys : DEFAULT_LINK_KEYS.slice(),
+        themePreference
     };
 }
 
@@ -43,6 +49,14 @@ export function loadConfig() {
 
 export function saveConfig(config) {
     localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(sanitizeConfig(config)));
+}
+
+export function updateConfig(partialConfig) {
+    const currentConfig = loadConfig();
+    saveConfig({
+        ...currentConfig,
+        ...partialConfig
+    });
 }
 
 export function getConfiguredLinks(username) {

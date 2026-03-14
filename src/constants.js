@@ -4,10 +4,13 @@ export const CUSTOM_BUTTON_CLASS = 'custom-gh-nav-btn';
 export const CUSTOM_BUTTON_ACTIVE_CLASS = 'custom-gh-nav-btn-active';
 export const CUSTOM_BUTTON_COMPACT_CLASS = 'custom-gh-nav-btn-compact';
 export const QUICK_LINK_MARK_ATTR = 'data-better-gh-nav-quick-link';
+export const QUICK_LINK_HOST_MARK_ATTR = 'data-better-gh-nav-quick-link-host';
 export const RESPONSIVE_TOGGLE_MARK_ATTR = 'data-better-gh-nav-overflow-toggle';
 export const CONFIG_STORAGE_KEY = 'better-gh-nav-config-v1';
 export const TOP_REPOSITORIES_PIN_STORAGE_KEY = 'better-gh-nav-top-repositories-pins-v1';
 export const UI_LANG_STORAGE_KEY = 'better-gh-nav-ui-lang-v1';
+export const THEME_ATTR = 'data-better-github-nav-theme';
+export const THEME_SOURCE_ATTR = 'data-better-github-nav-theme-source';
 export const SETTINGS_OVERLAY_ID = 'custom-gh-nav-settings-overlay';
 export const SETTINGS_PANEL_ID = 'custom-gh-nav-settings-panel';
 export const SETTINGS_MESSAGE_ID = 'custom-gh-nav-settings-message';
@@ -36,6 +39,9 @@ export const I18N = {
         menuLangZh: 'Better GitHub Nav: 界面语言 -> 中文',
         menuLangEn: 'Better GitHub Nav: 界面语言 -> English',
         menuLangAuto: 'Better GitHub Nav: 界面语言 -> 自动（跟随页面）',
+        menuThemeLight: 'Better GitHub Nav: 主题 -> 亮色',
+        menuThemeDark: 'Better GitHub Nav: 主题 -> 暗色',
+        menuThemeAuto: 'Better GitHub Nav: 主题 -> 自动（跟随 GitHub）',
         resetConfirm: '确认重置快捷链接配置为默认值吗？',
         panelTitle: 'Better GitHub Nav 设置',
         panelDesc: '勾选决定显示项，拖动整行（或右侧手柄）调整显示顺序。',
@@ -58,6 +64,9 @@ export const I18N = {
         menuLangZh: 'Better GitHub Nav: UI Language -> 中文',
         menuLangEn: 'Better GitHub Nav: UI Language -> English',
         menuLangAuto: 'Better GitHub Nav: UI Language -> Auto (Follow Page)',
+        menuThemeLight: 'Better GitHub Nav: Theme -> Light',
+        menuThemeDark: 'Better GitHub Nav: Theme -> Dark',
+        menuThemeAuto: 'Better GitHub Nav: Theme -> Auto (Follow GitHub)',
         resetConfirm: 'Reset quick-link config to defaults?',
         panelTitle: 'Better GitHub Nav Settings',
         panelDesc: 'Select visible links and drag the row (or handle) to reorder.',
