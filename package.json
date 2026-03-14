@@ -1,6 +1,6 @@
 {
   "name": "better-github-nav",
-  "version": "0.1.45",
+  "version": "0.1.50",
   "description": "Bring Dashboard, Trending, Explore, Collections, and Stars closer on desktop and narrow screens, and keep your most-used repositories pinned where they are easiest to reach.",
   "private": true,
   "scripts": {

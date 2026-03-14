@@ -1,13 +1,13 @@
 import {
-    CONFIG_STORAGE_KEY,
     DEFAULT_LINK_KEYS,
     SETTINGS_MESSAGE_ID,
     SETTINGS_OVERLAY_ID,
     SETTINGS_PANEL_ID
 } from './constants.js';
-import { getDisplayNameByKey, loadConfig, sanitizeConfig, saveConfig } from './config.js';
+import { getDisplayNameByKey, loadConfig, sanitizeConfig, updateConfig } from './config.js';
 import { t, setUiLangPreference } from './i18n.js';
 import { ensureStyles } from './styles.js';
+import { setThemePreference } from './theme.js';
 
 let settingsEscHandler = null;
 
@@ -193,7 +193,7 @@ export function openConfigPanel() {
             message.textContent = t('atLeastOneLink');
             return;
         }
-        saveConfig({
+        updateConfig({
             enabledKeys,
             orderKeys: state.order.slice()
         });
@@ -231,7 +231,10 @@ export function registerConfigMenu() {
     GM_registerMenuCommand(t('menuResetSettings'), () => {
         const shouldReset = confirm(t('resetConfirm'));
         if (!shouldReset) return;
-        localStorage.removeItem(CONFIG_STORAGE_KEY);
+        updateConfig({
+            enabledKeys: DEFAULT_LINK_KEYS,
+            orderKeys: DEFAULT_LINK_KEYS
+        });
         closeConfigPanel();
         location.reload();
     });
@@ -252,5 +255,20 @@ export function registerConfigMenu() {
         setUiLangPreference('auto');
         closeConfigPanel();
         location.reload();
+    });
+
+    GM_registerMenuCommand(t('menuThemeLight'), () => {
+        setThemePreference('light');
+        closeConfigPanel();
+    });
+
+    GM_registerMenuCommand(t('menuThemeDark'), () => {
+        setThemePreference('dark');
+        closeConfigPanel();
+    });
+
+    GM_registerMenuCommand(t('menuThemeAuto'), () => {
+        setThemePreference('auto');
+        closeConfigPanel();
     });
 }

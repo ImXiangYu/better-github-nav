@@ -13,10 +13,12 @@ import {
     isTopRepositoriesToggleTarget,
     needsTopRepositoriesEnhancement
 } from './top-repositories.js';
+import { bindThemePreferenceSync, syncThemePreference } from './theme.js';
 
 let renderQueued = false;
 
 function applyEnhancements() {
+    syncThemePreference();
     ensureStyles();
     addCustomButtons();
     enhanceTopRepositories();
@@ -35,6 +37,7 @@ function scheduleEnhancements() {
 console.info(`[Better GitHub Navigation] loaded v${SCRIPT_VERSION}`);
 window.__betterGithubNavVersion = SCRIPT_VERSION;
 window.__openBetterGithubNavSettings = openConfigPanel;
+bindThemePreferenceSync();
 registerConfigMenu();
 scheduleEnhancements();
 

@@ -2,9 +2,9 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.45
-// @description  Bring Dashboard, Trending, Explore, Collections, and Stars closer on desktop and narrow screens, and keep your most-used repositories pinned where they are easiest to reach.
-// @description:zh-CN 在桌面端和窄屏场景下，把 Dashboard、Trending、Explore、Collections、Stars 放到更顺手的位置，并把你最常用的仓库固定在最容易到达的地方。
+// @version      0.1.50
+// @description  Supports adding commonly used sections such as Dashboard, Explore, Trending, Collections, and Stars to the navigation bar for one-click access. Allows customization of visibility and order. Supports dark mode and narrow-screen layouts. Also includes a “GitHub Top Repositories” feature for pinning repositories, making frequently used repositories easy to access.
+// @description:zh-CN 支持将 DashBoard、Explore、Trending、Collections、Stars 等常用入口放入导航栏中一键直达。支持自定义是否显示，自定义顺序。支持深色模式、窄屏场景。同时加入了 Github Top repositories 显示仓库置顶功能，常用仓库一键置顶，方便查看。
 // @author       Ayubass
 // @license      MIT
 // @match        https://github.com/*
@@ -16,15 +16,19 @@
 
 (() => {
   // src/constants.js
-  var SCRIPT_VERSION = "0.1.45";
+  var SCRIPT_VERSION = "0.1.50";
   var CUSTOM_BUTTON_CLASS = "custom-gh-nav-btn";
   var CUSTOM_BUTTON_ACTIVE_CLASS = "custom-gh-nav-btn-active";
   var CUSTOM_BUTTON_COMPACT_CLASS = "custom-gh-nav-btn-compact";
   var QUICK_LINK_MARK_ATTR = "data-better-gh-nav-quick-link";
+  var QUICK_LINK_HOST_MARK_ATTR = "data-better-gh-nav-quick-link-host";
+  var QUICK_LINK_LAST_MARK_ATTR = "data-better-gh-nav-quick-link-last";
   var RESPONSIVE_TOGGLE_MARK_ATTR = "data-better-gh-nav-overflow-toggle";
   var CONFIG_STORAGE_KEY = "better-gh-nav-config-v1";
   var TOP_REPOSITORIES_PIN_STORAGE_KEY = "better-gh-nav-top-repositories-pins-v1";
   var UI_LANG_STORAGE_KEY = "better-gh-nav-ui-lang-v1";
+  var THEME_ATTR = "data-better-github-nav-theme";
+  var THEME_SOURCE_ATTR = "data-better-github-nav-theme-source";
   var SETTINGS_OVERLAY_ID = "custom-gh-nav-settings-overlay";
   var SETTINGS_PANEL_ID = "custom-gh-nav-settings-panel";
   var SETTINGS_MESSAGE_ID = "custom-gh-nav-settings-message";
@@ -50,6 +54,9 @@
       menuLangZh: "Better GitHub Nav: 界面语言 -> 中文",
       menuLangEn: "Better GitHub Nav: 界面语言 -> English",
       menuLangAuto: "Better GitHub Nav: 界面语言 -> 自动（跟随页面）",
+      menuThemeLight: "Better GitHub Nav: 主题 -> 亮色",
+      menuThemeDark: "Better GitHub Nav: 主题 -> 暗色",
+      menuThemeAuto: "Better GitHub Nav: 主题 -> 自动（跟随 GitHub）",
       resetConfirm: "确认重置快捷链接配置为默认值吗？",
       panelTitle: "Better GitHub Nav 设置",
       panelDesc: "勾选决定显示项，拖动整行（或右侧手柄）调整显示顺序。",
@@ -72,6 +79,9 @@
       menuLangZh: "Better GitHub Nav: UI Language -> 中文",
       menuLangEn: "Better GitHub Nav: UI Language -> English",
       menuLangAuto: "Better GitHub Nav: UI Language -> Auto (Follow Page)",
+      menuThemeLight: "Better GitHub Nav: Theme -> Light",
+      menuThemeDark: "Better GitHub Nav: Theme -> Dark",
+      menuThemeAuto: "Better GitHub Nav: Theme -> Auto (Follow GitHub)",
       resetConfirm: "Reset quick-link config to defaults?",
       panelTitle: "Better GitHub Nav Settings",
       panelDesc: "Select visible links and drag the row (or handle) to reorder.",
@@ -91,6 +101,9 @@
   };
 
   // src/config.js
+  function sanitizeThemePreference(themePreference) {
+    return themePreference === "light" || themePreference === "dark" ? themePreference : "auto";
+  }
   function sanitizeKeys(keys) {
     const validSet = new Set(DEFAULT_LINK_KEYS);
     const seen = /* @__PURE__ */ new Set();
@@ -111,9 +124,11 @@
       ...orderKeysRaw,
       ...DEFAULT_LINK_KEYS.filter((key) => !orderSet.has(key))
     ];
+    const themePreference = sanitizeThemePreference(rawConfig?.themePreference);
     return {
       enabledKeys: enabledKeys.length ? enabledKeys : DEFAULT_LINK_KEYS.slice(),
-      orderKeys: orderKeys.length ? orderKeys : DEFAULT_LINK_KEYS.slice()
+      orderKeys: orderKeys.length ? orderKeys : DEFAULT_LINK_KEYS.slice(),
+      themePreference
     };
   }
   function loadConfig() {
@@ -127,6 +142,13 @@
   }
   function saveConfig(config) {
     localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(sanitizeConfig(config)));
+  }
+  function updateConfig(partialConfig) {
+    const currentConfig = loadConfig();
+    saveConfig({
+      ...currentConfig,
+      ...partialConfig
+    });
   }
   function getConfiguredLinks(username) {
     const config = loadConfig();
@@ -179,6 +201,136 @@
     const style = document.createElement("style");
     style.id = "custom-gh-nav-style";
     style.textContent = `
+        :root {
+            --bgn-color-scheme: light;
+            --bgn-fg-default: #1f2328;
+            --bgn-fg-muted: #656d76;
+            --bgn-fg-on-emphasis: #ffffff;
+            --bgn-border-default: #d1d9e0;
+            --bgn-border-muted: #d8dee4;
+            --bgn-surface-default: #ffffff;
+            --bgn-surface-subtle: #f6f8fa;
+            --bgn-surface-hover: rgba(177, 186, 196, 0.12);
+            --bgn-surface-active: rgba(177, 186, 196, 0.18);
+            --bgn-accent-fg: #0969da;
+            --bgn-accent-subtle: rgba(9, 105, 218, 0.08);
+            --bgn-btn-bg: #f6f8fa;
+            --bgn-btn-hover-bg: #f3f4f6;
+            --bgn-btn-primary-bg: #1f883d;
+            --bgn-btn-primary-hover-bg: #1a7f37;
+            --bgn-btn-primary-text: #ffffff;
+            --bgn-attention-fg: #9a6700;
+            --bgn-tooltip-bg: #1f2328;
+            --bgn-tooltip-kbd-bg: rgba(110, 118, 129, 0.4);
+            --bgn-overlay-backdrop: rgba(0, 0, 0, 0.45);
+            --bgn-shadow-medium: 0 8px 24px rgba(0, 0, 0, 0.2);
+            --bgn-shadow-large: 0 16px 32px rgba(0, 0, 0, 0.16);
+            --bgn-shadow-panel: 0 16px 40px rgba(0, 0, 0, 0.25);
+        }
+        :root[${THEME_SOURCE_ATTR}="auto"][${THEME_ATTR}="light"] {
+            --bgn-color-scheme: light;
+            --bgn-fg-default: var(--color-fg-default, #1f2328);
+            --bgn-fg-muted: var(--color-fg-muted, #656d76);
+            --bgn-fg-on-emphasis: var(--color-fg-on-emphasis, #ffffff);
+            --bgn-border-default: var(--color-border-default, #d1d9e0);
+            --bgn-border-muted: var(--color-border-muted, #d8dee4);
+            --bgn-surface-default: var(--color-canvas-default, #ffffff);
+            --bgn-surface-subtle: var(--color-canvas-subtle, #f6f8fa);
+            --bgn-surface-hover: var(--color-neutral-muted, rgba(177, 186, 196, 0.12));
+            --bgn-surface-active: var(--color-neutral-muted, rgba(177, 186, 196, 0.18));
+            --bgn-accent-fg: var(--color-accent-fg, #0969da);
+            --bgn-accent-subtle: var(--color-accent-subtle, rgba(9, 105, 218, 0.08));
+            --bgn-btn-bg: var(--color-btn-bg, #f6f8fa);
+            --bgn-btn-hover-bg: var(--color-btn-hover-bg, #f3f4f6);
+            --bgn-btn-primary-bg: var(--color-btn-primary-bg, #1f883d);
+            --bgn-btn-primary-hover-bg: var(--color-btn-primary-hover-bg, #1a7f37);
+            --bgn-btn-primary-text: var(--color-btn-primary-text, #ffffff);
+            --bgn-attention-fg: var(--color-attention-fg, #9a6700);
+            --bgn-tooltip-bg: var(--color-neutral-emphasis-plus, #1f2328);
+            --bgn-tooltip-kbd-bg: rgba(110, 118, 129, 0.4);
+            --bgn-overlay-backdrop: rgba(0, 0, 0, 0.45);
+            --bgn-shadow-medium: var(--color-shadow-medium, 0 8px 24px rgba(0, 0, 0, 0.2));
+            --bgn-shadow-large: var(--color-shadow-large, 0 16px 32px rgba(0, 0, 0, 0.16));
+            --bgn-shadow-panel: 0 16px 40px rgba(0, 0, 0, 0.25);
+        }
+        :root[${THEME_SOURCE_ATTR}="auto"][${THEME_ATTR}="dark"] {
+            --bgn-color-scheme: dark;
+            --bgn-fg-default: var(--color-fg-default, #e6edf3);
+            --bgn-fg-muted: var(--color-fg-muted, #8b949e);
+            --bgn-fg-on-emphasis: var(--color-fg-on-emphasis, #ffffff);
+            --bgn-border-default: var(--color-border-default, #30363d);
+            --bgn-border-muted: var(--color-border-muted, #30363d);
+            --bgn-surface-default: var(--color-canvas-default, #0d1117);
+            --bgn-surface-subtle: var(--color-canvas-subtle, #161b22);
+            --bgn-surface-hover: var(--color-neutral-muted, rgba(110, 118, 129, 0.22));
+            --bgn-surface-active: var(--color-neutral-muted, rgba(110, 118, 129, 0.32));
+            --bgn-accent-fg: var(--color-accent-fg, #58a6ff);
+            --bgn-accent-subtle: var(--color-accent-subtle, rgba(56, 139, 253, 0.18));
+            --bgn-btn-bg: var(--color-btn-bg, #212830);
+            --bgn-btn-hover-bg: var(--color-btn-hover-bg, #30363d);
+            --bgn-btn-primary-bg: var(--color-btn-primary-bg, #238636);
+            --bgn-btn-primary-hover-bg: var(--color-btn-primary-hover-bg, #2ea043);
+            --bgn-btn-primary-text: var(--color-btn-primary-text, #ffffff);
+            --bgn-attention-fg: var(--color-attention-fg, #d29922);
+            --bgn-tooltip-bg: var(--color-neutral-emphasis-plus, #21262d);
+            --bgn-tooltip-kbd-bg: rgba(139, 148, 158, 0.35);
+            --bgn-overlay-backdrop: rgba(1, 4, 9, 0.72);
+            --bgn-shadow-medium: var(--color-shadow-medium, 0 8px 24px rgba(1, 4, 9, 0.45));
+            --bgn-shadow-large: var(--color-shadow-large, 0 16px 32px rgba(1, 4, 9, 0.5));
+            --bgn-shadow-panel: 0 18px 42px rgba(1, 4, 9, 0.6);
+        }
+        :root[${THEME_SOURCE_ATTR}="custom"][${THEME_ATTR}="light"] {
+            --bgn-color-scheme: light;
+            --bgn-fg-default: #1f2328;
+            --bgn-fg-muted: #656d76;
+            --bgn-fg-on-emphasis: #ffffff;
+            --bgn-border-default: #d1d9e0;
+            --bgn-border-muted: #d8dee4;
+            --bgn-surface-default: #ffffff;
+            --bgn-surface-subtle: #f6f8fa;
+            --bgn-surface-hover: rgba(177, 186, 196, 0.12);
+            --bgn-surface-active: rgba(177, 186, 196, 0.18);
+            --bgn-accent-fg: #0969da;
+            --bgn-accent-subtle: rgba(9, 105, 218, 0.08);
+            --bgn-btn-bg: #f6f8fa;
+            --bgn-btn-hover-bg: #f3f4f6;
+            --bgn-btn-primary-bg: #1f883d;
+            --bgn-btn-primary-hover-bg: #1a7f37;
+            --bgn-btn-primary-text: #ffffff;
+            --bgn-attention-fg: #9a6700;
+            --bgn-tooltip-bg: #1f2328;
+            --bgn-tooltip-kbd-bg: rgba(110, 118, 129, 0.4);
+            --bgn-overlay-backdrop: rgba(0, 0, 0, 0.45);
+            --bgn-shadow-medium: 0 8px 24px rgba(0, 0, 0, 0.2);
+            --bgn-shadow-large: 0 16px 32px rgba(0, 0, 0, 0.16);
+            --bgn-shadow-panel: 0 16px 40px rgba(0, 0, 0, 0.25);
+        }
+        :root[${THEME_SOURCE_ATTR}="custom"][${THEME_ATTR}="dark"] {
+            --bgn-color-scheme: dark;
+            --bgn-fg-default: #e6edf3;
+            --bgn-fg-muted: #8b949e;
+            --bgn-fg-on-emphasis: #ffffff;
+            --bgn-border-default: #30363d;
+            --bgn-border-muted: #30363d;
+            --bgn-surface-default: #0d1117;
+            --bgn-surface-subtle: #161b22;
+            --bgn-surface-hover: rgba(110, 118, 129, 0.22);
+            --bgn-surface-active: rgba(110, 118, 129, 0.32);
+            --bgn-accent-fg: #58a6ff;
+            --bgn-accent-subtle: rgba(56, 139, 253, 0.18);
+            --bgn-btn-bg: #212830;
+            --bgn-btn-hover-bg: #30363d;
+            --bgn-btn-primary-bg: #238636;
+            --bgn-btn-primary-hover-bg: #2ea043;
+            --bgn-btn-primary-text: #ffffff;
+            --bgn-attention-fg: #d29922;
+            --bgn-tooltip-bg: #21262d;
+            --bgn-tooltip-kbd-bg: rgba(139, 148, 158, 0.35);
+            --bgn-overlay-backdrop: rgba(1, 4, 9, 0.72);
+            --bgn-shadow-medium: 0 8px 24px rgba(1, 4, 9, 0.45);
+            --bgn-shadow-large: 0 16px 32px rgba(1, 4, 9, 0.5);
+            --bgn-shadow-panel: 0 18px 42px rgba(1, 4, 9, 0.6);
+        }
         a.${CUSTOM_BUTTON_CLASS} {
             border-radius: 6px;
             padding-inline: 8px;
@@ -194,6 +346,12 @@
         a.${CUSTOM_BUTTON_CLASS},
         a.${CUSTOM_BUTTON_CLASS} * {
             cursor: pointer;
+        }
+        header [${QUICK_LINK_LAST_MARK_ATTR}="1"]::after,
+        header [${QUICK_LINK_LAST_MARK_ATTR}="1"] > a::after,
+        header a[${QUICK_LINK_MARK_ATTR}="1"][${QUICK_LINK_LAST_MARK_ATTR}="1"]::after {
+            content: none !important;
+            display: none !important;
         }
         a.${CUSTOM_BUTTON_CLASS}:hover {
             background-color: var(--color-neutral-muted, rgba(177, 186, 196, 0.12));
@@ -217,10 +375,11 @@
             min-width: 28px;
             min-height: 28px;
             padding: 0;
-            border: none;
+            border: 1px solid var(--bgn-border-default);
             border-radius: 6px;
-            background: transparent;
-            color: var(--color-fg-default, #1f2328);
+            background: var(--bgn-surface-subtle);
+            color: var(--bgn-fg-default);
+            color-scheme: var(--bgn-color-scheme);
             font: inherit;
             font-weight: 600;
             line-height: 1;
@@ -228,10 +387,10 @@
         }
         .custom-gh-nav-overflow-toggle:hover,
         .custom-gh-nav-overflow-toggle[aria-expanded="true"] {
-            background-color: var(--color-neutral-muted, rgba(177, 186, 196, 0.12));
+            background-color: var(--bgn-surface-hover);
         }
         .custom-gh-nav-overflow-toggle:focus-visible {
-            outline: 2px solid var(--color-accent-fg, #0969da);
+            outline: 2px solid var(--bgn-accent-fg);
             outline-offset: 1px;
         }
         .custom-gh-nav-overflow-toggle-icon {
@@ -252,10 +411,12 @@
             min-width: 220px;
             max-width: min(280px, calc(100vw - 16px));
             padding: 6px;
-            border: 1px solid var(--color-border-default, #d1d9e0);
+            border: 1px solid var(--bgn-border-default);
             border-radius: 12px;
-            background: var(--color-canvas-default, #fff);
-            box-shadow: var(--color-shadow-large, 0 16px 32px rgba(0, 0, 0, 0.16));
+            background: var(--bgn-surface-default);
+            color: var(--bgn-fg-default);
+            color-scheme: var(--bgn-color-scheme);
+            box-shadow: var(--bgn-shadow-large);
             box-sizing: border-box;
         }
         .custom-gh-nav-overflow-menu[hidden] {
@@ -269,18 +430,18 @@
             min-height: 32px;
             padding: 6px 10px;
             border-radius: 8px;
-            color: var(--color-fg-default, #1f2328);
+            color: var(--bgn-fg-default);
             font-size: 13px;
             font-weight: 600;
             text-decoration: none;
         }
         .custom-gh-nav-overflow-link:hover {
-            background: var(--color-neutral-muted, rgba(177, 186, 196, 0.12));
+            background: var(--bgn-surface-hover);
             text-decoration: none;
         }
         .custom-gh-nav-overflow-link[aria-current="page"] {
-            color: var(--color-accent-fg, #0969da);
-            background: var(--color-accent-subtle, rgba(9, 105, 218, 0.08));
+            color: var(--bgn-accent-fg);
+            background: var(--bgn-accent-subtle);
         }
         .custom-gh-nav-overflow-link-text {
             min-width: 0;
@@ -294,8 +455,8 @@
             padding: 2px 6px;
             border: none !important;
             border-radius: 999px;
-            background: var(--color-neutral-muted, rgba(177, 186, 196, 0.18)) !important;
-            color: var(--color-fg-muted, #656d76);
+            background: var(--bgn-surface-active) !important;
+            color: var(--bgn-fg-muted);
             box-shadow: none !important;
             font: inherit;
             font-size: 11px;
@@ -309,8 +470,8 @@
             align-items: center;
             gap: 8px;
             max-width: min(320px, calc(100vw - 16px));
-            background: var(--color-neutral-emphasis-plus, #1f2328);
-            color: var(--color-fg-on-emphasis, #ffffff);
+            background: var(--bgn-tooltip-bg);
+            color: var(--bgn-fg-on-emphasis);
             border-radius: 6px;
             padding: 4px 8px;
             font-size: 12px;
@@ -319,8 +480,8 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
             pointer-events: none;
             box-sizing: border-box;
-            box-shadow: var(--color-shadow-medium, 0 8px 24px rgba(0,0,0,0.2));
-            border: 1px solid var(--color-border-default, transparent);
+            box-shadow: var(--bgn-shadow-medium);
+            border: 1px solid var(--bgn-border-default);
             text-decoration: none;
         }
         .custom-gh-nav-tooltip[hidden] {
@@ -357,7 +518,7 @@
             vertical-align: middle;
             padding: 0 4px;
             border-radius: 4px;
-            background: rgba(110, 118, 129, 0.4);
+            background: var(--bgn-tooltip-kbd-bg);
             color: #ffffff;
             font-size: 11px;
             font-weight: 400;
@@ -373,7 +534,7 @@
             position: fixed;
             inset: 0;
             z-index: 2147483647;
-            background: rgba(0, 0, 0, 0.45);
+            background: var(--bgn-overlay-backdrop);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -384,11 +545,12 @@
             width: min(560px, 100%);
             max-height: min(80vh, 720px);
             overflow: auto;
-            background: var(--color-canvas-default, #fff);
-            color: var(--color-fg-default, #1f2328);
-            border: 1px solid var(--color-border-default, #d1d9e0);
+            background: var(--bgn-surface-default);
+            color: var(--bgn-fg-default);
+            border: 1px solid var(--bgn-border-default);
             border-radius: 10px;
-            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+            color-scheme: var(--bgn-color-scheme);
+            box-shadow: var(--bgn-shadow-panel);
             padding: 16px;
             box-sizing: border-box;
         }
@@ -399,7 +561,7 @@
         }
         .custom-gh-nav-settings-desc {
             margin: 0 0 12px;
-            color: var(--color-fg-muted, #656d76);
+            color: var(--bgn-fg-muted);
             font-size: 13px;
         }
         .custom-gh-nav-settings-list {
@@ -412,10 +574,10 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            border: 1px solid var(--color-border-muted, #d8dee4);
+            border: 1px solid var(--bgn-border-muted);
             border-radius: 8px;
             padding: 8px 10px;
-            background: var(--color-canvas-subtle, #f6f8fa);
+            background: var(--bgn-surface-subtle);
             cursor: grab;
         }
         .custom-gh-nav-settings-row:active {
@@ -437,9 +599,9 @@
             gap: 6px;
         }
         .custom-gh-nav-settings-drag-handle {
-            border: 1px solid var(--color-border-default, #d1d9e0);
-            background: var(--color-btn-bg, #f6f8fa);
-            color: var(--color-fg-muted, #656d76);
+            border: 1px solid var(--bgn-border-default);
+            background: var(--bgn-btn-bg);
+            color: var(--bgn-fg-muted);
             border-radius: 6px;
             width: 32px;
             height: 26px;
@@ -455,32 +617,32 @@
             opacity: 0.55;
         }
         .custom-gh-nav-settings-row-drag-over {
-            border-color: var(--color-accent-fg, #0969da);
-            background: var(--color-accent-subtle, #ddf4ff);
+            border-color: var(--bgn-accent-fg);
+            background: var(--bgn-accent-subtle);
         }
         .custom-gh-nav-settings-btn {
-            border: 1px solid var(--color-border-default, #d1d9e0);
-            background: var(--color-btn-bg, #f6f8fa);
-            color: var(--color-fg-default, #1f2328);
+            border: 1px solid var(--bgn-border-default);
+            background: var(--bgn-btn-bg);
+            color: var(--bgn-fg-default);
             border-radius: 6px;
             padding: 4px 10px;
             font-size: 12px;
             cursor: pointer;
         }
         .custom-gh-nav-settings-btn:hover {
-            background: var(--color-btn-hover-bg, #f3f4f6);
+            background: var(--bgn-btn-hover-bg);
         }
         .custom-gh-nav-settings-btn:disabled {
             opacity: 0.45;
             cursor: not-allowed;
         }
         .custom-gh-nav-settings-btn-primary {
-            background: var(--color-btn-primary-bg, #1f883d);
-            border-color: var(--color-btn-primary-bg, #1f883d);
-            color: var(--color-btn-primary-text, #fff);
+            background: var(--bgn-btn-primary-bg);
+            border-color: var(--bgn-btn-primary-bg);
+            color: var(--bgn-btn-primary-text);
         }
         .custom-gh-nav-settings-btn-primary:hover {
-            background: var(--color-btn-primary-hover-bg, #1a7f37);
+            background: var(--bgn-btn-primary-hover-bg);
         }
         .custom-gh-nav-settings-footer {
             margin-top: 12px;
@@ -491,7 +653,7 @@
         .custom-gh-nav-settings-message {
             min-height: 20px;
             margin-top: 8px;
-            color: var(--color-attention-fg, #9a6700);
+            color: var(--bgn-attention-fg);
             font-size: 12px;
         }
         .custom-gh-top-repos-row {
@@ -664,10 +826,69 @@
   }
   function insertNodeAfter(parent, node, referenceNode) {
     if (!parent || !node || !referenceNode || referenceNode.parentNode !== parent) return;
-    const nextSibling = referenceNode.nextSibling;
-    if (node.parentNode === parent && node.previousSibling === referenceNode) return;
+    let insertionReference = referenceNode;
+    while (insertionReference.nextSibling && insertionReference.nextSibling.nodeType === Node.TEXT_NODE) {
+      const textContent = insertionReference.nextSibling.textContent || "";
+      if (textContent.trim()) break;
+      insertionReference = insertionReference.nextSibling;
+    }
+    if (isBreadcrumbSeparatorNode(insertionReference.nextSibling)) {
+      insertionReference = insertionReference.nextSibling;
+    }
+    const nextSibling = insertionReference.nextSibling;
+    if (node.parentNode === parent && node.previousSibling === insertionReference) return;
     if (nextSibling === node) return;
     parent.insertBefore(node, nextSibling);
+  }
+  function isBreadcrumbSeparatorNode(node) {
+    if (!node) return false;
+    if (node.nodeType === Node.TEXT_NODE) {
+      return (node.textContent || "").trim() === "/";
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return false;
+    const text = (node.textContent || "").replace(/\s+/g, "");
+    if (text === "/") return true;
+    const className = typeof node.className === "string" ? node.className : "";
+    return /breadcrumb|separator|divider/i.test(className) && text === "/";
+  }
+  function stripBreadcrumbSeparatorsFromHost(hostNode) {
+    if (!hostNode || hostNode.nodeType !== Node.ELEMENT_NODE) return;
+    const anchor = hostNode.tagName.toLowerCase() === "a" ? hostNode : hostNode.querySelector("a");
+    Array.from(hostNode.childNodes).forEach((child) => {
+      if (child === anchor) return;
+      if (child.nodeType === Node.TEXT_NODE && isBreadcrumbSeparatorNode(child)) {
+        child.remove();
+      }
+    });
+    Array.from(hostNode.querySelectorAll("*")).forEach((node) => {
+      if (anchor && anchor.contains(node)) return;
+      if (isBreadcrumbSeparatorNode(node)) {
+        node.remove();
+      }
+    });
+  }
+  function setQuickLinkHostMark(hostNode, enabled) {
+    if (!hostNode || hostNode.nodeType !== Node.ELEMENT_NODE) return;
+    if (enabled) {
+      hostNode.setAttribute(QUICK_LINK_HOST_MARK_ATTR, "1");
+    } else {
+      hostNode.removeAttribute(QUICK_LINK_HOST_MARK_ATTR);
+    }
+  }
+  function setQuickLinkLastMark(hostNode, enabled) {
+    if (!hostNode || hostNode.nodeType !== Node.ELEMENT_NODE) return;
+    const anchor = hostNode.tagName.toLowerCase() === "a" ? hostNode : hostNode.querySelector("a");
+    if (enabled) {
+      hostNode.setAttribute(QUICK_LINK_LAST_MARK_ATTR, "1");
+      if (anchor && anchor.getAttribute(QUICK_LINK_MARK_ATTR) === "1") {
+        anchor.setAttribute(QUICK_LINK_LAST_MARK_ATTR, "1");
+      }
+      return;
+    }
+    hostNode.removeAttribute(QUICK_LINK_LAST_MARK_ATTR);
+    if (anchor) {
+      anchor.removeAttribute(QUICK_LINK_LAST_MARK_ATTR);
+    }
   }
   function createOverflowChevronIcon() {
     const ns = "http://www.w3.org/2000/svg";
@@ -1255,13 +1476,16 @@
       const hasShortcutActive = navPresetLinks.some((link) => isCurrentPage(link.path));
       const renderedQuickAnchors = [];
       const renderedQuickItems = [];
+      const quickHostNodes = [];
       if (isOnPresetPage && anchorTag && primaryLink) {
+        setQuickLinkHostMark(insertAnchorNode, true);
         anchorTag.id = primaryLink.id;
         anchorTag.setAttribute(QUICK_LINK_MARK_ATTR, "1");
         anchorTag.href = primaryLink.href;
         setLinkText(anchorTag, primaryLink.text);
         applyLinkShortcut(anchorTag, primaryLink);
         renderedQuickAnchors.push(anchorTag);
+        quickHostNodes.push(insertAnchorNode);
         setActiveStyle(anchorTag, isCurrentPage(primaryLink.path), shouldUseCompactButtons);
       } else {
         const wasQuickAnchor = Boolean(anchorTag) && (anchorTag.id && anchorTag.id.startsWith("custom-gh-btn-") || anchorTag.getAttribute(QUICK_LINK_MARK_ATTR) === "1");
@@ -1271,6 +1495,8 @@
         if (anchorTag) {
           anchorTag.removeAttribute(QUICK_LINK_MARK_ATTR);
         }
+        setQuickLinkHostMark(insertAnchorNode, false);
+        setQuickLinkLastMark(insertAnchorNode, false);
         if (anchorTag && wasQuickAnchor) {
           anchorTag.removeAttribute("data-hotkey");
           anchorTag.removeAttribute("aria-keyshortcuts");
@@ -1284,14 +1510,16 @@
       linksToRender.forEach((linkInfo) => {
         const newNode = cloneTemplateNode.cloneNode(true);
         const aTag = ensureAnchor(newNode, isTemplateLiParent);
+        setQuickLinkHostMark(newNode, true);
         aTag.id = linkInfo.id;
         aTag.setAttribute(QUICK_LINK_MARK_ATTR, "1");
         aTag.href = linkInfo.href;
         setLinkText(aTag, linkInfo.text);
         applyLinkShortcut(aTag, linkInfo);
         renderedQuickAnchors.push(aTag);
+        quickHostNodes.push(newNode);
         setActiveStyle(aTag, isCurrentPage(linkInfo.path), shouldUseCompactButtons);
-        insertAfterNode.parentNode.insertBefore(newNode, insertAfterNode.nextSibling);
+        insertNodeAfter(insertAfterNode.parentNode, newNode, insertAfterNode);
         insertAfterNode = newNode;
         renderedQuickItems.push({
           anchor: aTag,
@@ -1299,6 +1527,12 @@
           linkInfo
         });
       });
+      quickHostNodes.forEach((node) => setQuickLinkLastMark(node, false));
+      const lastQuickHostNode = quickHostNodes[quickHostNodes.length - 1];
+      if (lastQuickHostNode) {
+        setQuickLinkLastMark(lastQuickHostNode, true);
+        stripBreadcrumbSeparatorsFromHost(lastQuickHostNode);
+      }
       setupResponsiveQuickLinks({
         inlineItems: renderedQuickItems,
         referenceNode: insertAnchorNode,
@@ -1306,6 +1540,63 @@
       });
       reportHotkeyConflicts(renderedQuickAnchors.filter((anchor) => anchor.isConnected));
     }
+  }
+
+  // src/theme.js
+  var themeSyncBound = false;
+  var systemThemeQuery = null;
+  function detectGitHubTheme() {
+    const root = document.documentElement;
+    const colorMode = String(root.getAttribute("data-color-mode") || "").toLowerCase();
+    if (colorMode === "light" || colorMode === "dark") {
+      return colorMode;
+    }
+    const rootStyle = getComputedStyle(root);
+    const colorScheme = String(rootStyle.colorScheme || "").toLowerCase();
+    if (colorScheme.includes("dark")) return "dark";
+    if (colorScheme.includes("light")) return "light";
+    if (!systemThemeQuery && typeof window.matchMedia === "function") {
+      systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    }
+    return systemThemeQuery?.matches ? "dark" : "light";
+  }
+  function resolveThemePreference(preference = loadConfig().themePreference) {
+    const safePreference = sanitizeThemePreference(preference);
+    return safePreference === "auto" ? detectGitHubTheme() : safePreference;
+  }
+  function syncThemePreference() {
+    const preference = sanitizeThemePreference(loadConfig().themePreference);
+    const appliedTheme = resolveThemePreference(preference);
+    document.documentElement.setAttribute(THEME_ATTR, appliedTheme);
+    document.documentElement.setAttribute(THEME_SOURCE_ATTR, preference === "auto" ? "auto" : "custom");
+    return appliedTheme;
+  }
+  function setThemePreference(preference) {
+    updateConfig({ themePreference: preference });
+    return syncThemePreference();
+  }
+  function bindThemePreferenceSync() {
+    if (themeSyncBound) return;
+    themeSyncBound = true;
+    syncThemePreference();
+    if (!systemThemeQuery && typeof window.matchMedia === "function") {
+      systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    }
+    if (systemThemeQuery?.addEventListener) {
+      systemThemeQuery.addEventListener("change", syncThemePreference);
+    } else if (systemThemeQuery?.addListener) {
+      systemThemeQuery.addListener(syncThemePreference);
+    }
+    const observer2 = new MutationObserver((mutations) => {
+      const shouldSync = mutations.some((mutation) => mutation.type === "attributes" && (mutation.attributeName === "data-color-mode" || mutation.attributeName === "data-dark-theme" || mutation.attributeName === "data-light-theme"));
+      if (shouldSync) {
+        syncThemePreference();
+      }
+    });
+    observer2.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-color-mode", "data-dark-theme", "data-light-theme"]
+    });
   }
 
   // src/settings-panel.js
@@ -1463,7 +1754,7 @@
         message.textContent = t("atLeastOneLink");
         return;
       }
-      saveConfig({
+      updateConfig({
         enabledKeys,
         orderKeys: state.order.slice()
       });
@@ -1494,7 +1785,10 @@
     GM_registerMenuCommand(t("menuResetSettings"), () => {
       const shouldReset = confirm(t("resetConfirm"));
       if (!shouldReset) return;
-      localStorage.removeItem(CONFIG_STORAGE_KEY);
+      updateConfig({
+        enabledKeys: DEFAULT_LINK_KEYS,
+        orderKeys: DEFAULT_LINK_KEYS
+      });
       closeConfigPanel();
       location.reload();
     });
@@ -1512,6 +1806,18 @@
       setUiLangPreference("auto");
       closeConfigPanel();
       location.reload();
+    });
+    GM_registerMenuCommand(t("menuThemeLight"), () => {
+      setThemePreference("light");
+      closeConfigPanel();
+    });
+    GM_registerMenuCommand(t("menuThemeDark"), () => {
+      setThemePreference("dark");
+      closeConfigPanel();
+    });
+    GM_registerMenuCommand(t("menuThemeAuto"), () => {
+      setThemePreference("auto");
+      closeConfigPanel();
     });
   }
 
@@ -1856,6 +2162,7 @@
   // src/main.js
   var renderQueued = false;
   function applyEnhancements() {
+    syncThemePreference();
     ensureStyles();
     addCustomButtons();
     enhanceTopRepositories();
@@ -1871,6 +2178,7 @@
   console.info(`[Better GitHub Navigation] loaded v${SCRIPT_VERSION}`);
   window.__betterGithubNavVersion = SCRIPT_VERSION;
   window.__openBetterGithubNavSettings = openConfigPanel;
+  bindThemePreferenceSync();
   registerConfigMenu();
   scheduleEnhancements();
   document.addEventListener("turbo:load", scheduleEnhancements);

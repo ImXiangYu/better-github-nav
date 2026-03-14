@@ -1,6 +1,8 @@
 import {
     PRESET_LINKS,
     PRESET_LINK_SHORTCUTS,
+    QUICK_LINK_HOST_MARK_ATTR,
+    QUICK_LINK_LAST_MARK_ATTR,
     QUICK_LINK_MARK_ATTR,
     RESPONSIVE_TOGGLE_MARK_ATTR
 } from './constants.js';
@@ -133,10 +135,79 @@ function cleanupQuickLinksForContainer(renderParent, keepNode) {
 function insertNodeAfter(parent, node, referenceNode) {
     if (!parent || !node || !referenceNode || referenceNode.parentNode !== parent) return;
 
-    const nextSibling = referenceNode.nextSibling;
-    if (node.parentNode === parent && node.previousSibling === referenceNode) return;
+    let insertionReference = referenceNode;
+    while (insertionReference.nextSibling && insertionReference.nextSibling.nodeType === Node.TEXT_NODE) {
+        const textContent = insertionReference.nextSibling.textContent || '';
+        if (textContent.trim()) break;
+        insertionReference = insertionReference.nextSibling;
+    }
+    if (isBreadcrumbSeparatorNode(insertionReference.nextSibling)) {
+        insertionReference = insertionReference.nextSibling;
+    }
+
+    const nextSibling = insertionReference.nextSibling;
+    if (node.parentNode === parent && node.previousSibling === insertionReference) return;
     if (nextSibling === node) return;
     parent.insertBefore(node, nextSibling);
+}
+
+function isBreadcrumbSeparatorNode(node) {
+    if (!node) return false;
+    if (node.nodeType === Node.TEXT_NODE) {
+        return (node.textContent || '').trim() === '/';
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return false;
+
+    const text = (node.textContent || '').replace(/\s+/g, '');
+    if (text === '/') return true;
+
+    const className = typeof node.className === 'string' ? node.className : '';
+    return /breadcrumb|separator|divider/i.test(className) && text === '/';
+}
+
+function stripBreadcrumbSeparatorsFromHost(hostNode) {
+    if (!hostNode || hostNode.nodeType !== Node.ELEMENT_NODE) return;
+
+    const anchor = hostNode.tagName.toLowerCase() === 'a' ? hostNode : hostNode.querySelector('a');
+    Array.from(hostNode.childNodes).forEach(child => {
+        if (child === anchor) return;
+        if (child.nodeType === Node.TEXT_NODE && isBreadcrumbSeparatorNode(child)) {
+            child.remove();
+        }
+    });
+
+    Array.from(hostNode.querySelectorAll('*')).forEach(node => {
+        if (anchor && anchor.contains(node)) return;
+        if (isBreadcrumbSeparatorNode(node)) {
+            node.remove();
+        }
+    });
+}
+
+function setQuickLinkHostMark(hostNode, enabled) {
+    if (!hostNode || hostNode.nodeType !== Node.ELEMENT_NODE) return;
+    if (enabled) {
+        hostNode.setAttribute(QUICK_LINK_HOST_MARK_ATTR, '1');
+    } else {
+        hostNode.removeAttribute(QUICK_LINK_HOST_MARK_ATTR);
+    }
+}
+
+function setQuickLinkLastMark(hostNode, enabled) {
+    if (!hostNode || hostNode.nodeType !== Node.ELEMENT_NODE) return;
+    const anchor = hostNode.tagName.toLowerCase() === 'a' ? hostNode : hostNode.querySelector('a');
+    if (enabled) {
+        hostNode.setAttribute(QUICK_LINK_LAST_MARK_ATTR, '1');
+        if (anchor && anchor.getAttribute(QUICK_LINK_MARK_ATTR) === '1') {
+            anchor.setAttribute(QUICK_LINK_LAST_MARK_ATTR, '1');
+        }
+        return;
+    }
+
+    hostNode.removeAttribute(QUICK_LINK_LAST_MARK_ATTR);
+    if (anchor) {
+        anchor.removeAttribute(QUICK_LINK_LAST_MARK_ATTR);
+    }
 }
 
 function createOverflowChevronIcon() {
@@ -882,15 +953,18 @@ export function addCustomButtons() {
         const hasShortcutActive = navPresetLinks.some(link => isCurrentPage(link.path));
         const renderedQuickAnchors = [];
         const renderedQuickItems = [];
+        const quickHostNodes = [];
 
         if (isOnPresetPage && anchorTag && primaryLink) {
             // 预设页面：首个按钮替换为当前配置顺序中的第一个
+            setQuickLinkHostMark(insertAnchorNode, true);
             anchorTag.id = primaryLink.id;
             anchorTag.setAttribute(QUICK_LINK_MARK_ATTR, '1');
             anchorTag.href = primaryLink.href;
             setLinkText(anchorTag, primaryLink.text);
             applyLinkShortcut(anchorTag, primaryLink);
             renderedQuickAnchors.push(anchorTag);
+            quickHostNodes.push(insertAnchorNode);
             setActiveStyle(anchorTag, isCurrentPage(primaryLink.path), shouldUseCompactButtons);
         } else {
             // 其他页面：保留原生当前按钮，仅做高亮
@@ -904,6 +978,8 @@ export function addCustomButtons() {
             if (anchorTag) {
                 anchorTag.removeAttribute(QUICK_LINK_MARK_ATTR);
             }
+            setQuickLinkHostMark(insertAnchorNode, false);
+            setQuickLinkLastMark(insertAnchorNode, false);
             if (anchorTag && wasQuickAnchor) {
                 anchorTag.removeAttribute('data-hotkey');
                 anchorTag.removeAttribute('aria-keyshortcuts');
@@ -922,17 +998,19 @@ export function addCustomButtons() {
             const newNode = cloneTemplateNode.cloneNode(true);
             const aTag = ensureAnchor(newNode, isTemplateLiParent);
 
+            setQuickLinkHostMark(newNode, true);
             aTag.id = linkInfo.id;
             aTag.setAttribute(QUICK_LINK_MARK_ATTR, '1');
             aTag.href = linkInfo.href;
             setLinkText(aTag, linkInfo.text);
             applyLinkShortcut(aTag, linkInfo);
             renderedQuickAnchors.push(aTag);
+            quickHostNodes.push(newNode);
 
             setActiveStyle(aTag, isCurrentPage(linkInfo.path), shouldUseCompactButtons);
 
             // 将新按钮插入到锚点之后，并更新锚点
-            insertAfterNode.parentNode.insertBefore(newNode, insertAfterNode.nextSibling);
+            insertNodeAfter(insertAfterNode.parentNode, newNode, insertAfterNode);
             insertAfterNode = newNode;
             renderedQuickItems.push({
                 anchor: aTag,
@@ -940,6 +1018,13 @@ export function addCustomButtons() {
                 linkInfo
             });
         });
+
+        quickHostNodes.forEach(node => setQuickLinkLastMark(node, false));
+        const lastQuickHostNode = quickHostNodes[quickHostNodes.length - 1];
+        if (lastQuickHostNode) {
+            setQuickLinkLastMark(lastQuickHostNode, true);
+            stripBreadcrumbSeparatorsFromHost(lastQuickHostNode);
+        }
 
         setupResponsiveQuickLinks({
             inlineItems: renderedQuickItems,
