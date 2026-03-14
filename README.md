@@ -1,9 +1,6 @@
 # Better GitHub Navigation
 
-<p>
-  <a href="#readme-zh"><kbd>中文说明</kbd></a>
-  <a href="#readme-en"><kbd>English</kbd></a>
-</p>
+[中文说明](#readme-zh) | [English](#readme-en)
 
 <a id="readme-zh"></a>
 
