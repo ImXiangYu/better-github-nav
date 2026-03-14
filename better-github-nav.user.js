@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.49
+// @version      0.1.50
 // @description  Bring Dashboard, Trending, Explore, Collections, and Stars closer on desktop and narrow screens, and keep your most-used repositories pinned where they are easiest to reach.
 // @description:zh-CN 在桌面端和窄屏场景下，把 Dashboard、Trending、Explore、Collections、Stars 放到更顺手的位置，并把你最常用的仓库固定在最容易到达的地方。
 // @author       Ayubass
@@ -16,12 +16,13 @@
 
 (() => {
   // src/constants.js
-  var SCRIPT_VERSION = "0.1.49";
+  var SCRIPT_VERSION = "0.1.50";
   var CUSTOM_BUTTON_CLASS = "custom-gh-nav-btn";
   var CUSTOM_BUTTON_ACTIVE_CLASS = "custom-gh-nav-btn-active";
   var CUSTOM_BUTTON_COMPACT_CLASS = "custom-gh-nav-btn-compact";
   var QUICK_LINK_MARK_ATTR = "data-better-gh-nav-quick-link";
   var QUICK_LINK_HOST_MARK_ATTR = "data-better-gh-nav-quick-link-host";
+  var QUICK_LINK_LAST_MARK_ATTR = "data-better-gh-nav-quick-link-last";
   var RESPONSIVE_TOGGLE_MARK_ATTR = "data-better-gh-nav-overflow-toggle";
   var CONFIG_STORAGE_KEY = "better-gh-nav-config-v1";
   var TOP_REPOSITORIES_PIN_STORAGE_KEY = "better-gh-nav-top-repositories-pins-v1";
@@ -346,12 +347,9 @@
         a.${CUSTOM_BUTTON_CLASS} * {
             cursor: pointer;
         }
-        header [${QUICK_LINK_HOST_MARK_ATTR}="1"]::before,
-        header [${QUICK_LINK_HOST_MARK_ATTR}="1"]::after,
-        header [${QUICK_LINK_HOST_MARK_ATTR}="1"] > a::before,
-        header [${QUICK_LINK_HOST_MARK_ATTR}="1"] > a::after,
-        header a[${QUICK_LINK_MARK_ATTR}="1"]::before,
-        header a[${QUICK_LINK_MARK_ATTR}="1"]::after {
+        header [${QUICK_LINK_LAST_MARK_ATTR}="1"]::after,
+        header [${QUICK_LINK_LAST_MARK_ATTR}="1"] > a::after,
+        header a[${QUICK_LINK_MARK_ATTR}="1"][${QUICK_LINK_LAST_MARK_ATTR}="1"]::after {
             content: none !important;
             display: none !important;
         }
@@ -875,6 +873,21 @@
       hostNode.setAttribute(QUICK_LINK_HOST_MARK_ATTR, "1");
     } else {
       hostNode.removeAttribute(QUICK_LINK_HOST_MARK_ATTR);
+    }
+  }
+  function setQuickLinkLastMark(hostNode, enabled) {
+    if (!hostNode || hostNode.nodeType !== Node.ELEMENT_NODE) return;
+    const anchor = hostNode.tagName.toLowerCase() === "a" ? hostNode : hostNode.querySelector("a");
+    if (enabled) {
+      hostNode.setAttribute(QUICK_LINK_LAST_MARK_ATTR, "1");
+      if (anchor && anchor.getAttribute(QUICK_LINK_MARK_ATTR) === "1") {
+        anchor.setAttribute(QUICK_LINK_LAST_MARK_ATTR, "1");
+      }
+      return;
+    }
+    hostNode.removeAttribute(QUICK_LINK_LAST_MARK_ATTR);
+    if (anchor) {
+      anchor.removeAttribute(QUICK_LINK_LAST_MARK_ATTR);
     }
   }
   function createOverflowChevronIcon() {
@@ -1463,15 +1476,16 @@
       const hasShortcutActive = navPresetLinks.some((link) => isCurrentPage(link.path));
       const renderedQuickAnchors = [];
       const renderedQuickItems = [];
+      const quickHostNodes = [];
       if (isOnPresetPage && anchorTag && primaryLink) {
         setQuickLinkHostMark(insertAnchorNode, true);
         anchorTag.id = primaryLink.id;
         anchorTag.setAttribute(QUICK_LINK_MARK_ATTR, "1");
         anchorTag.href = primaryLink.href;
         setLinkText(anchorTag, primaryLink.text);
-        stripBreadcrumbSeparatorsFromHost(insertAnchorNode);
         applyLinkShortcut(anchorTag, primaryLink);
         renderedQuickAnchors.push(anchorTag);
+        quickHostNodes.push(insertAnchorNode);
         setActiveStyle(anchorTag, isCurrentPage(primaryLink.path), shouldUseCompactButtons);
       } else {
         const wasQuickAnchor = Boolean(anchorTag) && (anchorTag.id && anchorTag.id.startsWith("custom-gh-btn-") || anchorTag.getAttribute(QUICK_LINK_MARK_ATTR) === "1");
@@ -1482,6 +1496,7 @@
           anchorTag.removeAttribute(QUICK_LINK_MARK_ATTR);
         }
         setQuickLinkHostMark(insertAnchorNode, false);
+        setQuickLinkLastMark(insertAnchorNode, false);
         if (anchorTag && wasQuickAnchor) {
           anchorTag.removeAttribute("data-hotkey");
           anchorTag.removeAttribute("aria-keyshortcuts");
@@ -1500,9 +1515,9 @@
         aTag.setAttribute(QUICK_LINK_MARK_ATTR, "1");
         aTag.href = linkInfo.href;
         setLinkText(aTag, linkInfo.text);
-        stripBreadcrumbSeparatorsFromHost(newNode);
         applyLinkShortcut(aTag, linkInfo);
         renderedQuickAnchors.push(aTag);
+        quickHostNodes.push(newNode);
         setActiveStyle(aTag, isCurrentPage(linkInfo.path), shouldUseCompactButtons);
         insertNodeAfter(insertAfterNode.parentNode, newNode, insertAfterNode);
         insertAfterNode = newNode;
@@ -1512,6 +1527,12 @@
           linkInfo
         });
       });
+      quickHostNodes.forEach((node) => setQuickLinkLastMark(node, false));
+      const lastQuickHostNode = quickHostNodes[quickHostNodes.length - 1];
+      if (lastQuickHostNode) {
+        setQuickLinkLastMark(lastQuickHostNode, true);
+        stripBreadcrumbSeparatorsFromHost(lastQuickHostNode);
+      }
       setupResponsiveQuickLinks({
         inlineItems: renderedQuickItems,
         referenceNode: insertAnchorNode,

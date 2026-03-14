@@ -5,6 +5,7 @@ export const CUSTOM_BUTTON_ACTIVE_CLASS = 'custom-gh-nav-btn-active';
 export const CUSTOM_BUTTON_COMPACT_CLASS = 'custom-gh-nav-btn-compact';
 export const QUICK_LINK_MARK_ATTR = 'data-better-gh-nav-quick-link';
 export const QUICK_LINK_HOST_MARK_ATTR = 'data-better-gh-nav-quick-link-host';
+export const QUICK_LINK_LAST_MARK_ATTR = 'data-better-gh-nav-quick-link-last';
 export const RESPONSIVE_TOGGLE_MARK_ATTR = 'data-better-gh-nav-overflow-toggle';
 export const CONFIG_STORAGE_KEY = 'better-gh-nav-config-v1';
 export const TOP_REPOSITORIES_PIN_STORAGE_KEY = 'better-gh-nav-top-repositories-pins-v1';

@@ -2,6 +2,7 @@ import {
     PRESET_LINKS,
     PRESET_LINK_SHORTCUTS,
     QUICK_LINK_HOST_MARK_ATTR,
+    QUICK_LINK_LAST_MARK_ATTR,
     QUICK_LINK_MARK_ATTR,
     RESPONSIVE_TOGGLE_MARK_ATTR
 } from './constants.js';
@@ -189,6 +190,23 @@ function setQuickLinkHostMark(hostNode, enabled) {
         hostNode.setAttribute(QUICK_LINK_HOST_MARK_ATTR, '1');
     } else {
         hostNode.removeAttribute(QUICK_LINK_HOST_MARK_ATTR);
+    }
+}
+
+function setQuickLinkLastMark(hostNode, enabled) {
+    if (!hostNode || hostNode.nodeType !== Node.ELEMENT_NODE) return;
+    const anchor = hostNode.tagName.toLowerCase() === 'a' ? hostNode : hostNode.querySelector('a');
+    if (enabled) {
+        hostNode.setAttribute(QUICK_LINK_LAST_MARK_ATTR, '1');
+        if (anchor && anchor.getAttribute(QUICK_LINK_MARK_ATTR) === '1') {
+            anchor.setAttribute(QUICK_LINK_LAST_MARK_ATTR, '1');
+        }
+        return;
+    }
+
+    hostNode.removeAttribute(QUICK_LINK_LAST_MARK_ATTR);
+    if (anchor) {
+        anchor.removeAttribute(QUICK_LINK_LAST_MARK_ATTR);
     }
 }
 
@@ -935,6 +953,7 @@ export function addCustomButtons() {
         const hasShortcutActive = navPresetLinks.some(link => isCurrentPage(link.path));
         const renderedQuickAnchors = [];
         const renderedQuickItems = [];
+        const quickHostNodes = [];
 
         if (isOnPresetPage && anchorTag && primaryLink) {
             // 预设页面：首个按钮替换为当前配置顺序中的第一个
@@ -943,9 +962,9 @@ export function addCustomButtons() {
             anchorTag.setAttribute(QUICK_LINK_MARK_ATTR, '1');
             anchorTag.href = primaryLink.href;
             setLinkText(anchorTag, primaryLink.text);
-            stripBreadcrumbSeparatorsFromHost(insertAnchorNode);
             applyLinkShortcut(anchorTag, primaryLink);
             renderedQuickAnchors.push(anchorTag);
+            quickHostNodes.push(insertAnchorNode);
             setActiveStyle(anchorTag, isCurrentPage(primaryLink.path), shouldUseCompactButtons);
         } else {
             // 其他页面：保留原生当前按钮，仅做高亮
@@ -960,6 +979,7 @@ export function addCustomButtons() {
                 anchorTag.removeAttribute(QUICK_LINK_MARK_ATTR);
             }
             setQuickLinkHostMark(insertAnchorNode, false);
+            setQuickLinkLastMark(insertAnchorNode, false);
             if (anchorTag && wasQuickAnchor) {
                 anchorTag.removeAttribute('data-hotkey');
                 anchorTag.removeAttribute('aria-keyshortcuts');
@@ -983,9 +1003,9 @@ export function addCustomButtons() {
             aTag.setAttribute(QUICK_LINK_MARK_ATTR, '1');
             aTag.href = linkInfo.href;
             setLinkText(aTag, linkInfo.text);
-            stripBreadcrumbSeparatorsFromHost(newNode);
             applyLinkShortcut(aTag, linkInfo);
             renderedQuickAnchors.push(aTag);
+            quickHostNodes.push(newNode);
 
             setActiveStyle(aTag, isCurrentPage(linkInfo.path), shouldUseCompactButtons);
 
@@ -998,6 +1018,13 @@ export function addCustomButtons() {
                 linkInfo
             });
         });
+
+        quickHostNodes.forEach(node => setQuickLinkLastMark(node, false));
+        const lastQuickHostNode = quickHostNodes[quickHostNodes.length - 1];
+        if (lastQuickHostNode) {
+            setQuickLinkLastMark(lastQuickHostNode, true);
+            stripBreadcrumbSeparatorsFromHost(lastQuickHostNode);
+        }
 
         setupResponsiveQuickLinks({
             inlineItems: renderedQuickItems,

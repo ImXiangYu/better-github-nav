@@ -3,6 +3,7 @@ import {
     CUSTOM_BUTTON_CLASS,
     CUSTOM_BUTTON_COMPACT_CLASS,
     QUICK_LINK_HOST_MARK_ATTR,
+    QUICK_LINK_LAST_MARK_ATTR,
     QUICK_LINK_MARK_ATTR,
     THEME_ATTR,
     THEME_SOURCE_ATTR,
@@ -161,12 +162,9 @@ export function ensureStyles() {
         a.${CUSTOM_BUTTON_CLASS} * {
             cursor: pointer;
         }
-        header [${QUICK_LINK_HOST_MARK_ATTR}="1"]::before,
-        header [${QUICK_LINK_HOST_MARK_ATTR}="1"]::after,
-        header [${QUICK_LINK_HOST_MARK_ATTR}="1"] > a::before,
-        header [${QUICK_LINK_HOST_MARK_ATTR}="1"] > a::after,
-        header a[${QUICK_LINK_MARK_ATTR}="1"]::before,
-        header a[${QUICK_LINK_MARK_ATTR}="1"]::after {
+        header [${QUICK_LINK_LAST_MARK_ATTR}="1"]::after,
+        header [${QUICK_LINK_LAST_MARK_ATTR}="1"] > a::after,
+        header a[${QUICK_LINK_MARK_ATTR}="1"][${QUICK_LINK_LAST_MARK_ATTR}="1"]::after {
             content: none !important;
             display: none !important;
         }
