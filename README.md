@@ -12,12 +12,21 @@
 
 ### 🚀 核心功能
 - **常用页面一键直达**：把 `Dashboard`、`Explore`、`Trending`、`Collections`、`Stars` 这些常用入口补到顶部导航。
+  ![image-20260314111704936](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314111704936.png)
 - **快捷入口自定义显示**：想显示哪些、放什么顺序，都可以自己调整，导航栏终于能配合你的工作流。
+  ![image-20260314111810164](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314111810164.png)
 - **窄屏和移动端适配**：窗口变窄时，常用入口依然好找好点，小屏浏览 GitHub 也不会被拥挤的头部打断节奏。
+  ![image-20260314111848110](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314111848110.png)
 - **常用仓库固定**：GitHub 首页左侧 `Top repositories` 支持一键置顶，把你真正常开的仓库留在最前面。
+  ![image-20260314111928748](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314111928748.png)
 - **跨页浏览**：在 GitHub 里切页面时，增强入口会持续生效。
+  ![image-20260314111954077](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314111954077.png)
 - **双语界面**：支持中文和英文，自动跟随页面语言。
+  ![image-20260314112134041](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314112134041.png)
+  ![image-20260314112154596](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314112154596.png)
 - **深色模式适配**：深色场景下依然适用。
+  ![image-20260314112223000](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314112223000.png)
+  ![image-20260314112245868](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314112245868.png)
 
 ### 🛠️ 如何使用
 1. 安装脚本后，在 GitHub 页面点击油猴扩展图标。
@@ -44,12 +53,21 @@ It allows commonly used sections such as Dashboard, Explore, Trending, Collectio
 
 ### 🚀 Key Features
 - **One-click access to the pages you use most**: Add `Dashboard`, `Explore`, `Trending`, `Collections`, and `Stars` directly to the top navigation.
+  ![image-20260314111704936](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314111704936.png)
 - **Customize which shortcuts appear**: Decide what to show and in what order, so the header finally matches your workflow.
+  ![image-20260314111810164](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314111810164.png)
 - **Works well on narrow screens and mobile layouts**: Even when the window gets smaller, your shortcuts stay easy to find and click.
+  ![image-20260314111848110](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314111848110.png)
 - **Pin your most-used repositories**: On the GitHub home page, `Top repositories` gets one-click pinning so your real daily repos stay at the front.
+  ![image-20260314111928748](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314111928748.png)
 - **Keeps working while you move across GitHub**: The enhanced entry points stay available as you switch pages.
+  ![image-20260314111954077](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314111954077.png)
 - **Bilingual UI**: Supports both Chinese and English, and follows the page language automatically.
+  ![image-20260314112134041](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314112134041.png)
+  ![image-20260314112154596](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314112154596.png)
 - **Dark mode ready**: Still clear and comfortable to use in dark mode.
+  ![image-20260314112223000](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314112223000.png)
+  ![image-20260314112245868](https://cdn.jsdelivr.net/gh/ImXiangYu/image-hosting@main/image/image-20260314112245868.png)
 
 ### 🛠️ How to Use
 1. After installation, click the Tampermonkey icon on any GitHub page.
