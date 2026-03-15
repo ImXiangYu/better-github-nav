@@ -2,7 +2,7 @@
 // @name         Better GitHub Navigation
 // @name:zh-CN   更好的 GitHub 导航栏
 // @namespace    https://github.com/ImXiangYu/better-github-nav
-// @version      0.1.50
+// @version      0.1.51
 // @description  Supports adding commonly used sections such as Dashboard, Explore, Trending, Collections, and Stars to the navigation bar for one-click access. Allows customization of visibility and order. Supports dark mode and narrow-screen layouts. Also includes a “GitHub Top Repositories” feature for pinning repositories, making frequently used repositories easy to access.
 // @description:zh-CN 支持将 DashBoard、Explore、Trending、Collections、Stars 等常用入口放入导航栏中一键直达。支持自定义是否显示，自定义顺序。支持深色模式、窄屏场景。同时加入了 Github Top repositories 显示仓库置顶功能，常用仓库一键置顶，方便查看。
 // @author       Ayubass
@@ -16,7 +16,7 @@
 
 (() => {
   // src/constants.js
-  var SCRIPT_VERSION = "0.1.50";
+  var SCRIPT_VERSION = "0.1.51";
   var CUSTOM_BUTTON_CLASS = "custom-gh-nav-btn";
   var CUSTOM_BUTTON_ACTIVE_CLASS = "custom-gh-nav-btn-active";
   var CUSTOM_BUTTON_COMPACT_CLASS = "custom-gh-nav-btn-compact";
@@ -53,7 +53,7 @@
       menuResetSettings: "Better GitHub Nav: 重置快捷链接配置",
       menuLangZh: "Better GitHub Nav: 界面语言 -> 中文",
       menuLangEn: "Better GitHub Nav: 界面语言 -> English",
-      menuLangAuto: "Better GitHub Nav: 界面语言 -> 自动（跟随页面）",
+      menuLangAuto: "Better GitHub Nav: 界面语言 -> 自动（跟随浏览器）",
       menuThemeLight: "Better GitHub Nav: 主题 -> 亮色",
       menuThemeDark: "Better GitHub Nav: 主题 -> 暗色",
       menuThemeAuto: "Better GitHub Nav: 主题 -> 自动（跟随 GitHub）",
@@ -78,7 +78,7 @@
       menuResetSettings: "Better GitHub Nav: Reset Quick Link Config",
       menuLangZh: "Better GitHub Nav: UI Language -> 中文",
       menuLangEn: "Better GitHub Nav: UI Language -> English",
-      menuLangAuto: "Better GitHub Nav: UI Language -> Auto (Follow Page)",
+      menuLangAuto: "Better GitHub Nav: UI Language -> Auto (Follow Browser)",
       menuThemeLight: "Better GitHub Nav: Theme -> Light",
       menuThemeDark: "Better GitHub Nav: Theme -> Dark",
       menuThemeAuto: "Better GitHub Nav: Theme -> Auto (Follow GitHub)",
@@ -168,6 +168,16 @@
 
   // src/i18n.js
   var uiLang = detectUiLang();
+  function detectAutoUiLang() {
+    const browserLocales = [
+      ...Array.isArray(navigator.languages) ? navigator.languages : [],
+      navigator.language
+    ].map((locale) => String(locale || "").toLowerCase()).filter(Boolean);
+    if (browserLocales.some((locale) => locale.startsWith("zh"))) return "zh";
+    if (browserLocales.some((locale) => locale.startsWith("en"))) return "en";
+    const pageLang = (document.documentElement.lang || "").toLowerCase();
+    return pageLang.startsWith("zh") ? "zh" : "en";
+  }
   function t(key, vars = {}) {
     const dict = I18N[uiLang] || I18N.en;
     const fallback = I18N.en;
@@ -180,8 +190,7 @@
       if (preferredLang === "zh" || preferredLang === "en") return preferredLang;
     } catch (e) {
     }
-    const autoLang = (document.documentElement.lang || navigator.language || "").toLowerCase();
-    return autoLang.startsWith("zh") ? "zh" : "en";
+    return detectAutoUiLang();
   }
   function setUiLangPreference(lang) {
     try {

@@ -2,6 +2,21 @@ import { I18N, UI_LANG_STORAGE_KEY } from './constants.js';
 
 let uiLang = detectUiLang();
 
+function detectAutoUiLang() {
+    const browserLocales = [
+        ...(Array.isArray(navigator.languages) ? navigator.languages : []),
+        navigator.language
+    ]
+        .map(locale => String(locale || '').toLowerCase())
+        .filter(Boolean);
+
+    if (browserLocales.some(locale => locale.startsWith('zh'))) return 'zh';
+    if (browserLocales.some(locale => locale.startsWith('en'))) return 'en';
+
+    const pageLang = (document.documentElement.lang || '').toLowerCase();
+    return pageLang.startsWith('zh') ? 'zh' : 'en';
+}
+
 export function t(key, vars = {}) {
     const dict = I18N[uiLang] || I18N.en;
     const fallback = I18N.en;
@@ -17,8 +32,7 @@ export function detectUiLang() {
         // ignore storage read failure and fallback to auto detection
     }
 
-    const autoLang = (document.documentElement.lang || navigator.language || '').toLowerCase();
-    return autoLang.startsWith('zh') ? 'zh' : 'en';
+    return detectAutoUiLang();
 }
 
 export function setUiLangPreference(lang) {
